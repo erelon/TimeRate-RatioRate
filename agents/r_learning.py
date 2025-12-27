@@ -15,6 +15,7 @@ class RLAgent(QLearningAgent):
         if next_state not in self.q_table:
             available_actions = self.get_available_actions(next_state)
             self.q_table[next_state] = {action: 0 for action in available_actions}
+
         best_current_action = max(self.q_table[state], key=self.q_table[state].get)
         best_next_action = max(self.q_table[next_state], key=self.q_table[next_state].get)
         delta = reward - self.rho + self.q_table[next_state][best_next_action] - self.q_table[state][action]
