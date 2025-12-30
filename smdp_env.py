@@ -92,15 +92,17 @@ def gemini_three_state_smdp_config() -> SMDPConfig:
     States: s1, s2, s3
     Actions: 0 -> action a, 1 -> action b
 
-    From the diagram (as interpreted):
+    From the gemini conversation at: https://gemini.google.com/app/02e42239d8664b7d 
+    policy a@s1 should yield 10 according to time average, better than b
+    policy a@s1 yields 1 under ratio of expectations, worse than b 
     - At s1:
         * action a leads to s2 with p=0.5, tau=1, r=20
-        * action a leads to s2 with p=0.5, tau=19, r=0
-        * action b leads to s3 with p=1.0, tau=1, r=4
+        * action a leads to s3 with p=0.5, tau=19, r=0
+        * action b leads to s1 with p=1.0, tau=1, r=4
     - At s2:
-        * action a leads to s2 with p=1.0, tau=1, r=0
+        * action a leads to s1 with p=1.0, tau=1, r=0
     - At s3:
-        * action a leads to s3 with p=1.0, tau=1, r=0
+        * action a leads to s1 with p=1.0, tau=1, r=0
 
     This can be easily modified in code if you want to try other structures.
     """

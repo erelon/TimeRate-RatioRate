@@ -6,7 +6,7 @@ from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
 from smdp_env import * # SMDPEnvironment, * # default_three_state_smdp_config
 import numpy as np
 
-def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 1000) -> Dict[ str, Any]:
+def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 200, max_steps_per_episode: int = 1000) -> Dict[ str, Any]:
     episode_returns: List[float] = []
     episode_times: List[float] = []
     rhos = []
@@ -66,8 +66,8 @@ def main():
     # cfg = default_three_state_smdp_config()
     # cfg = long_three_state_smdp_config(10)
     # cfg = loopy_three_state_smdp_config(10)
-    cfg = hub_three_state_smdp_config()
-    # cfg = gemini_three_state_smdp_config()
+    # cfg = hub_three_state_smdp_config()
+    cfg = gemini_three_state_smdp_config()
 
     env = SMDPEnvironment(cfg)
 
@@ -79,10 +79,10 @@ def main():
         # RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta),
         SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
 
-        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta),
+        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
 
-        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=0.1),
-        HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=0.1),
+        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
+        HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
     ]
 
     results = {}
