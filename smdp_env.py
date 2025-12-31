@@ -114,9 +114,9 @@ def default_three_state_smdp_config() -> SMDPConfig:
     ]
 
     # s1, action b (self-loop)
-    transitions[(s1, B)] = [
-        Transition(next_state=s1, prob=1.0, reward=2.0 / 5.0, duration=1.0),
-    ]
+    # transitions[(s1, B)] = [
+    #     Transition(next_state=s1, prob=1.0, reward=2.0 / 5.0, duration=1.0),
+    # ]
 
     # s2, action a
     transitions[(s2, A)] = [
@@ -125,7 +125,7 @@ def default_three_state_smdp_config() -> SMDPConfig:
 
     # s3, action a
     transitions[(s3, A)] = [
-        Transition(next_state=s3, prob=1.0, reward=0.0, duration=2.0),
+        Transition(next_state=s3, prob=1.0, reward=50.0, duration=100.0),
     ]
 
     cfg = SMDPConfig(
