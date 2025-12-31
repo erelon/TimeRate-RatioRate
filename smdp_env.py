@@ -100,9 +100,9 @@ def gemini_three_state_smdp_config() -> SMDPConfig:
         * action a leads to s3 with p=0.5, tau=19, r=0
         * action b leads to s1 with p=1.0, tau=1, r=4
     - At s2:
-        * action a leads to s1 with p=1.0, tau=1, r=0
+        * action a leads to s1 with p=1.0, tau=1, r=20
     - At s3:
-        * action a leads to s1 with p=1.0, tau=1, r=0
+        * action a leads to s1 with p=1.0, tau=119, r=0
 
     This can be easily modified in code if you want to try other structures.
     """
@@ -335,9 +335,8 @@ def hub_three_state_smdp_config() -> SMDPConfig:
     States: s1, s2_1,... s_2_k, s3_i, ... s_3_k
     Actions: 0 -> action a, 1 -> action b
 
-    From the diagram (as interpreted):
     - At s1:
-        * action a leads to s2 with r=100, tau=1 or 9, p=0
+        * action a leads to s2 with r=100, tau=1 or 9, p=0.5
         * action b leads to s3 with r=120, tau=4, p=1
     - At s2:
         * action a leads back to s1

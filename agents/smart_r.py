@@ -9,12 +9,15 @@ class SMARTRLAgent(RLAgent):
         self.total_time = 0
         self.total_reward = 0
         self.step_count = 0
+        self.total_totals = 0
+        self.beta = rho_learning_rate
 
     def reset(self):
         super().reset()
         self.total_time = 0
         self.total_reward = 0
         self.step_count = 0
+        self.total_totals = 0
 
     def learn(self, state, action, reward, next_state, time):
         if next_state not in self.q_table:
@@ -38,7 +41,23 @@ class SMARTRLAgent(RLAgent):
             self.step_count += 1
             self.total_time += time
             self.total_reward += reward
+
+            # SMART
             self.rho = self.total_reward / self.total_time
+
+            # AVG (sum_r/T): Option 1
+            # self.beta=(1.0/(float(self.step_count)+1))
+            # self.rho = (1-self.beta)*self.rho + self.beta*(self.total_reward / self.total_time)
+
+            # AVG (sum_r/T): Option 2
+            # self.total_totals += (self.total_reward / self.total_time)
+            # self.rho = self.total_totals / self.step_count
+
+            # AVG(sum r) / T
+            # self.total_totals += self.total_reward
+            # self.rho = (self.total_totals / (self.step_count)) / self.total_time
+            # print(f"total_totals {self.total_totals}, step_count {self.step_count} avg {(self.total_totals / (self.step_count))} total_reward {self.total_reward} reward {reward} total_time {self.total_time} rho {self.rho}")
+
 
 
 class SMARTEMARLAgent(RLAgent):
@@ -105,10 +124,10 @@ class SMARTEMARLAgent(RLAgent):
 
             b1 = self.beta
             b2 = self.beta
-            # self.rho_time = (1 - b1) * self.rho_time + b1 * time
-            self.rho_time = self.total_time / self.step_count
-            # self.rho_reward = (1 - b2) * self.rho_reward + b2 * reward
-            self.rho_reward = self.total_reward / self.step_count
+            self.rho_time = (1 - b1) * self.rho_time + b1 * time
+            # self.rho_time = self.total_time / self.step_count
+            self.rho_reward = (1 - b2) * self.rho_reward + b2 * reward
+            # self.rho_reward = self.total_reward / self.step_count
 
             self.rho = self.rho_reward / self.rho_time
 

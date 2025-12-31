@@ -6,7 +6,7 @@ from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
 from smdp_env import * # SMDPEnvironment, * # default_three_state_smdp_config
 import numpy as np
 
-def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 200, max_steps_per_episode: int = 1000) -> Dict[ str, Any]:
+def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 5000, max_steps_per_episode: int = 100) -> Dict[ str, Any]:
     episode_returns: List[float] = []
     episode_times: List[float] = []
     rhos = []
@@ -40,7 +40,7 @@ def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 200, max_steps_
         episode_times.append(total_time)
         rhos.append(agent.rho)
 
-    print(f"Finished training agent {agent.name}: rho = {agent.rho} q:{agent.q_table}")
+    print(f"Finished training {agent.name}: rho = {agent.rho:.4f} q:{agent.q_table}")
 
     return {
         "episode_returns": episode_returns,
@@ -72,17 +72,18 @@ def main():
     env = SMDPEnvironment(cfg)
 
     action_space = env.action_space
-    er = 1.0
+    er = 0.2
+    no_update_on_explore =True
     lr = 0.1
-    beta = 0.2
+    beta = 0.05
     agents = [
         # RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta),
-        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
+        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
-        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
+        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
-        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
-        HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=False),
+        # HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
+        # HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
     ]
 
     results = {}
