@@ -2,18 +2,20 @@ from typing import Dict, Any, List
 
 from agents.smart_r import SMARTRLAgent, SMARTEMARLAgent
 from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
-from smdp_env import SMDPEnvironment, default_three_state_smdp_config
+from smdp_env import SMDPEnvironment, default_three_state_smdp_config, unichain_non_stationary
 import numpy as np
 
-def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 10000, max_steps_per_episode: int = 100) -> Dict[
+def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 1, max_steps_per_episode: int = 10000) -> Dict[
     str, Any]:
     episode_returns: List[float] = []
     rhos = []
+    total_time = 0.
+    total_reward = 0.0
 
     for episode_idx in range(num_episodes):
         state = env.reset()
-        total_reward = 0.0
         steps = 0
+
         #agent.reset()
         while steps < max_steps_per_episode:
             if state not in agent.q_table:
@@ -25,9 +27,10 @@ def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 10000, max_step
 
             # Track convergence
             if agent.policy_changed:
-                agent.last_policy_changed_at = episode_idx
+                agent.last_policy_changed_at = steps
 
             total_reward += reward
+            total_time += duration
             state = next_state
             steps += 1
 
@@ -40,8 +43,10 @@ def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 10000, max_step
     return {
         "episode_returns": episode_returns,
         "total_return": sum(episode_returns),
+        "total_time": total_time,
         "converged_at": agent.last_policy_changed_at,
-        "rho": np.mean(rhos)
+        "rho": np.mean(rhos),
+        "s1_Random_hits": agent.__dict__.get("s1_random_count", 0),
     }
 
 
@@ -57,21 +62,22 @@ def get_greedy_policy(agent, states, action_space):
 
 
 def main():
-    cfg = default_three_state_smdp_config()
+    cfg = unichain_non_stationary()
     env = SMDPEnvironment(cfg)
 
     action_space = env.action_space
-    er = 0.0
+    er = 0
     agents = [
-        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er),
+        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=0.5, exploration_rate=er,
+                     with_rho_trick=True),
 
-        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er,
-                             rho_learning_rate=0.1),
+        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=0.01, exploration_rate=er,
+                             rho_learning_rate=0.01),
 
         HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er,
-                             rho_learning_rate=0.001),
-        HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er,
                              rho_learning_rate=0.1),
+        HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=0.1, exploration_rate=er,
+                             rho_learning_rate=0.001),
     ]
 
     results = {}
@@ -87,12 +93,15 @@ def main():
 
     # Print comparison table
     states = env.states
-    header_cols = ["Agent", "TotalReturn", "rho", "ConvergedAt"] + [f"strategy({s})" for s in states]
+    header_cols = ["Agent", "TotalReturn", "TotalTime","s1_Random_hits", "R/T", "rho", "ConvergedAt"] + [f"strategy({s})" for s in states]
     rows = []
     for agent_name, res in results.items():
         row = [
             agent_name,
             f"{res['total_return']:.2f}",
+            f"{res['total_time']:e}",
+            f"{res['s1_Random_hits']}",
+            f"{(res['total_return']/res['total_time']) :.2f}",
             f"{res['rho']:.4f}" if res["rho"] is not None else "-",
             str(res['converged_at']),
         ]

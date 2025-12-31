@@ -2,9 +2,19 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple, Hashable, Optional
 import random
 
-
 State = Hashable
 Action = int
+
+
+class Duration:
+    def __init__(self, value: float):
+        self.value = value
+
+    def update_state(self, state: float):
+        self.value = state
+
+    def get_value(self) -> float:
+        return self.value
 
 
 @dataclass
@@ -12,7 +22,7 @@ class Transition:
     next_state: State
     prob: float
     reward: float
-    duration: float  # tau
+    duration: float | Duration
 
 
 @dataclass
@@ -33,8 +43,9 @@ class SMDPEnvironment:
 
     def __init__(self, config: SMDPConfig, seed: int = 42):
         self.config = config
-        self.rng = random.Random(seed)
         self.state: State = config.start_state
+        self.seed = seed
+        self.rng = random.Random(self.seed)
         self.time_elapsed: float = 0.0
         self.total_reward: float = 0.0
         self.terminal_states = set(config.terminal_states or [])
@@ -43,10 +54,12 @@ class SMDPEnvironment:
         self.states = list(config.states)
         self.action_space = sorted(set(config.actions))
 
-    def reset(self) -> State:
+    def reset(self, seed: int = 42) -> State:
         self.state = self.config.start_state
         self.time_elapsed = 0.0
         self.total_reward = 0.0
+        self.rng = random.Random(seed)
+
         return self.state
 
     def get_available_actions(self, state: State) -> List[Action]:
@@ -75,12 +88,18 @@ class SMDPEnvironment:
                 break
 
         self.state = chosen.next_state
-        self.time_elapsed += chosen.duration
+        if isinstance(chosen.duration, Duration):
+            chosen.duration.update_state(self.state)
+            duration = chosen.duration.get_value()
+        else:
+            duration = chosen.duration
+
+        self.time_elapsed += duration
         self.total_reward += chosen.reward
 
         done = self.state in self.terminal_states
         info = {"prob": chosen.prob}
-        return self.state, chosen.reward, chosen.duration, done, info
+        return self.state, chosen.reward, duration, done, info
 
 
 def default_three_state_smdp_config() -> SMDPConfig:
@@ -102,21 +121,24 @@ def default_three_state_smdp_config() -> SMDPConfig:
     This can be easily modified in code if you want to try other structures.
     """
 
-    s1, s2, s3 = "s1", "s2", "s3"
+    s1, s2, s3, s4 = "s1", "s2", "s3", "s4"
     A, B = 0, 1  # 0: action a, 1: action b
 
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
 
-    # s1, action a
+    # s1,
     transitions[(s1, A)] = [
         Transition(next_state=s2, prob=0.5, reward=0.0, duration=1.0),
         Transition(next_state=s3, prob=0.5, reward=0.0, duration=1.0),
     ]
 
-    # s1, action b (self-loop)
-    # transitions[(s1, B)] = [
-    #     Transition(next_state=s1, prob=1.0, reward=2.0 / 5.0, duration=1.0),
-    # ]
+    # s1,
+    transitions[(s1, B)] = [
+        Transition(next_state=s4, prob=1.0, reward=0.6, duration=1.0),
+    ]
+    transitions[(s4, A)] = [
+        Transition(next_state=s4, prob=1.0, reward=0.6, duration=1.0),
+    ]
 
     # s2, action a
     transitions[(s2, A)] = [
@@ -129,7 +151,66 @@ def default_three_state_smdp_config() -> SMDPConfig:
     ]
 
     cfg = SMDPConfig(
-        states=[s1, s2, s3],
+        states=[s1, s2, s3, s4],
+        actions=[A, B],
+        transitions=transitions,
+        start_state=s1,
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
+
+
+class LinDuration(Duration):
+    def __init__(self, initial_value: float):
+        super().__init__(initial_value)
+        self.lin_rate = 1.001
+        self.initial_value = initial_value
+
+    def get_value(self) -> float:
+        if self.state == "s4":
+            return self.value
+        else:
+            return 1.0
+
+    def update_state(self, state: float):
+        self.state = state
+        if state == "s2":
+            self.value = self.value * self.lin_rate
+        if state == "s3":
+            self.value = self.initial_value
+
+
+def unichain_non_stationary():
+    s1, s2, s3, s4 = "s1", "s2", "s3", "s4"
+    A, B = 0, 1  # 0: action a, 1: action b
+
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+    EnvDur = LinDuration(2.0)
+    # s1,
+    transitions[(s1, A)] = [
+        Transition(next_state=s2, prob=1.0, reward=0.0, duration=EnvDur),
+    ]
+    transitions[(s1, B)] = [
+        Transition(next_state=s3, prob=1.0, reward=0.0, duration=EnvDur),
+
+    ]
+    p = 0.8
+    transitions[(s2, A)] = [
+        Transition(next_state=s2, prob=p, reward=1.0, duration=EnvDur),
+        Transition(next_state=s4, prob=1 - p, reward=1.0, duration=EnvDur),
+    ]
+
+    transitions[(s3, A)] = [
+        Transition(next_state=s3, prob=p, reward=0.8, duration=EnvDur),
+        Transition(next_state=s4, prob=1 - p, reward=1.0, duration=EnvDur),
+    ]
+
+    transitions[(s4, A)] = [
+        Transition(next_state=s1, prob=1.0, reward=0.0, duration=EnvDur),
+    ]
+
+    cfg = SMDPConfig(
+        states=[s1, s2, s3, s4],
         actions=[A, B],
         transitions=transitions,
         start_state=s1,

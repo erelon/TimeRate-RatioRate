@@ -16,7 +16,14 @@ class QLearningAgent(Agent):
             self.q_table[state] = {action: MAX_REWARDS for action in available_actions}
         if self.rng.random() < self.exploration_rate:
             available_actions = list(self.q_table[state].keys())
+            if state == "s1":
+                if not hasattr(self, 's1_random_count'):
+                    self.s1_random_count = 0
+                self.s1_random_count += 1
             return self.rng.choice(available_actions)
+
+
+
         return max(self.q_table[state], key=self.q_table[state].get)
 
     def reset(self):

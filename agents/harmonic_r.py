@@ -43,13 +43,38 @@ class HarmonicRLAgent(RLAgent):
             # rho = rho + alpha * (time - reward * rho)
             # equivalent to: rho = (1 - (reward * alpha)) * rho + alpha * time
 
-            #reciprocal_rate = 0 if zero == 1 else time / reward
-            self.pos_reciprocal_rho += self.rho_learning_rate * (time - reward * self.pos_reciprocal_rho) * pos
-            self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos
+            # Erel's version 1
+            # reciprocal_rate = 0 if zero == 1 else time / reward
+            # self.pos_reciprocal_rho += self.rho_learning_rate * (time - reward * self.pos_reciprocal_rho) * pos
+            # self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos
+
+            # Gal's version
+            # reciprocal_rate = 0 if zero == 1 else time / reward
+            # self.pos_reciprocal_rho = (1 - self.rho_learning_rate)*self.pos_reciprocal_rho + self.rho_learning_rate * reciprocal_rate * pos
+            # self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos * reward
+
+            # Erel's version 2
+            # reciprocal_rate = 0 if zero == 1 else time / reward
+            self.pos_reciprocal_rho = (1 - self.rho_learning_rate)*self.pos_reciprocal_rho + self.rho_learning_rate * time * pos
+            self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos * reward
+
             H_pos = 0 if self.pos_reciprocal_rho == 0 else self.pos_w / self.pos_reciprocal_rho
 
-            self.neg_reciprocal_rho += self.rho_learning_rate * (time - reward * self.neg_reciprocal_rho) * neg
-            self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg
+            ##################################
+
+            # Erel's version 1
+            # self.neg_reciprocal_rho += self.rho_learning_rate * (time - reward * self.neg_reciprocal_rho) * neg
+            # self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg
+            # H_neg = 0 if self.neg_reciprocal_rho == 0 else self.neg_w / self.neg_reciprocal_rho
+
+            # Gal's version
+            # self.neg_reciprocal_rho = (1 - self.rho_learning_rate) * self.neg_reciprocal_rho+self.rho_learning_rate * reciprocal_rate * neg
+            # self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg
+            # H_neg = 0 if self.neg_reciprocal_rho == 0 else self.neg_w / self.neg_reciprocal_rho
+
+            # Erel's version 2
+            self.neg_reciprocal_rho = (1 - self.rho_learning_rate) * self.neg_reciprocal_rho+self.rho_learning_rate * time * neg
+            self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg * reward
             H_neg = 0 if self.neg_reciprocal_rho == 0 else self.neg_w / self.neg_reciprocal_rho
 
             self.zero_w = (1 - self.rho_learning_rate) * self.zero_w + self.rho_learning_rate * zero
