@@ -139,12 +139,12 @@ def feinberg1_three_state_smdp_config() -> SMDPConfig:
         * action a leads to s2 with p=0.5, tau=1, r=0
         * action a leads to s3 with p=0.5, tau=1, r=0
     - At s2:
-        * action a leads to s2 with p=1.0, tau=1, r=1
+        * action a leads to s2 with p=1.0, tau=1, r=10
     - At s3:
-        * action a leads to s3 with p=1.0, tau=2, r=0
+        * action a leads to s3 with p=1.0, tau=2, r=10
 
-    policy a@s1 should yield 0.5 according to time average
-    policy a@s1 yields 0.3 under ratio of expectations 
+    policy a@s1 should yield 7.5 according to time average
+    policy a@s1 yields 6.6666 under ratio of expectations 
 
     """
 
@@ -161,12 +161,12 @@ def feinberg1_three_state_smdp_config() -> SMDPConfig:
 
     # s2, action a
     transitions[(s2, A)] = [
-        Transition(next_state=s2, prob=1.0, reward=1.0, duration=1.0),
+        Transition(next_state=s2, prob=1.0, reward=10.0, duration=1.0),
     ]
 
     # s3, action a
     transitions[(s3, A)] = [
-        Transition(next_state=s3, prob=1.0, reward=0.0, duration=2.0),
+        Transition(next_state=s3, prob=1.0, reward=10.0, duration=2.0),
     ]
 
 
