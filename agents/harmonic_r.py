@@ -1,14 +1,11 @@
 import sys
-from .r_learning import RLAgent
+from .r_learning import ContinuousRLAgent
 
+class HarmonicRLAgent(ContinuousRLAgent):
 
-class HarmonicRLAgent(RLAgent):
-    def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
-                 rho_learning_rate=0.3, **kwargs):
+    def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True, rho_learning_rate=0.3, **kwargs):
         super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
         self.reciprocal_rho = 0.0
-        self.total_time = 0
-        self.total_reward = 0
         self.pos_reciprocal_rho = 0.0
         self.neg_reciprocal_rho = 0.0
         self.neg_w =0 
@@ -22,106 +19,51 @@ class HarmonicRLAgent(RLAgent):
         self.neg_w =0 
         self.pos_w =0 
         self.zero_w =0 
-        self.total_time = 0
-        self.total_reward = 0
 
-    def learn(self, state, action, reward, next_state, time):
-        if next_state not in self.q_table:
-            available_actions = self.get_available_actions(next_state)
-            self.q_table[next_state] = {action: 0 for action in available_actions}
-        best_next_action = max(self.q_table[next_state], key=self.q_table[next_state].get)
-        best_current_action = max(self.q_table[state], key=self.q_table[state].get)
-        deltarho = reward - self.rho * time
-        delta = deltarho + self.q_table[next_state][best_next_action] - self.q_table[state][action]
-        self._check_convergence(state, action, self.learning_rate * delta)
-        self.q_table[state][action] += self.learning_rate * delta
-        if not self.with_rho_trick or (self.with_rho_trick and action == best_current_action):
-            pos = 1 if reward > 0 else 0
-            neg = 1 if reward < 0 else 0
-            zero = 1 if reward == 0 else 0
+    def HMA_rho(self, reward, time, weight):
+        pos = 1 if reward > 0 else 0
+        neg = 1 if reward < 0 else 0
+        zero = 1 if reward == 0 else 0
 
-            # rho = rho + alpha * (time - reward * rho)
-            # equivalent to: rho = (1 - (reward * alpha)) * rho + alpha * time
+        # Erel's version
+        # rho = rho + alpha * (time - reward * rho)
+        # equivalent to: rho = (1 - (reward * alpha)) * rho + alpha * time
 
-            # Erel's version
-            #reciprocal_rate = 0 if zero == 1 else time / reward
-            # self.pos_reciprocal_rho += self.rho_learning_rate * (time - reward * self.pos_reciprocal_rho) * pos
-            # self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos
+        # self.pos_reciprocal_rho += self.rho_learning_rate * (time - reward * self.pos_reciprocal_rho) * pos
+        # self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos
 
-            # Gal's version
-            reciprocal_rate = 0 if zero == 1 else time / reward
-            self.pos_reciprocal_rho = (1 - self.rho_learning_rate)*self.pos_reciprocal_rho + self.rho_learning_rate * reciprocal_rate * pos
-            self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos * reward
-            H_pos = 0 if self.pos_reciprocal_rho == 0 else self.pos_w / self.pos_reciprocal_rho
+        # Erel's version
+        # self.neg_reciprocal_rho += self.rho_learning_rate * (time - reward * self.neg_reciprocal_rho) * neg
+        # self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg
 
-            # Erel's version
-            # self.neg_reciprocal_rho += self.rho_learning_rate * (time - reward * self.neg_reciprocal_rho) * neg
-            # self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg
-            # H_neg = 0 if self.neg_reciprocal_rho == 0 else self.neg_w / self.neg_reciprocal_rho
+        # Gal's version
+        reciprocal_rate = 0 if zero == 1 else time / reward
+        self.pos_reciprocal_rho = (1 - self.rho_learning_rate)*self.pos_reciprocal_rho + self.rho_learning_rate * reciprocal_rate * pos * weight
+        self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos * weight
+        self.neg_reciprocal_rho = (1 - self.rho_learning_rate) * self.neg_reciprocal_rho+self.rho_learning_rate * reciprocal_rate * neg * weight
+        self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg * weight
+ 
+        # All versions
 
-            self.neg_reciprocal_rho = (1 - self.rho_learning_rate) * self.neg_reciprocal_rho+self.rho_learning_rate * reciprocal_rate * neg 
-            self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg
-            H_neg = 0 if self.neg_reciprocal_rho == 0 else self.neg_w / self.neg_reciprocal_rho
+        H_pos = 0 if self.pos_reciprocal_rho == 0 else self.pos_w / self.pos_reciprocal_rho
+        H_neg = 0 if self.neg_reciprocal_rho == 0 else self.neg_w / self.neg_reciprocal_rho
+        self.zero_w = (1 - self.rho_learning_rate) * self.zero_w + self.rho_learning_rate * zero
 
-            self.zero_w = (1 - self.rho_learning_rate) * self.zero_w + self.rho_learning_rate * zero
+        self.rho = (H_pos * self.pos_w + H_neg * self.neg_w) / (self.pos_w + self.neg_w + self.zero_w)
 
-            self.rho = (H_pos * self.pos_w + H_neg * self.neg_w) / (self.pos_w + self.neg_w + self.zero_w)
+    def calc_new_rho(self, delta, reward, time):
+        self.HMA_rho(reward,time,reward)  # Weighted HMA with weight = reward
 
 
-class HarmonicROLAgent(RLAgent):
-    def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
-                 rho_learning_rate=0.3, **kwargs):
-        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
-        self.reciprocal_rho = 0.0
-        self.total_time = 0
-        self.total_reward = 0
-        self.pos_reciprocal_rho = 0.0
-        self.neg_reciprocal_rho = 0.0
-        self.neg_w = 0 
-        self.pos_w = 0 
-        self.zero_w = 0
+class HarmonicROLAgent(HarmonicRLAgent):
 
-    def reset(self):
-        super().reset()
-        self.pos_reciprocal_rho = 0.0
-        self.neg_reciprocal_rho = 0.0
-        self.neg_w = 0 
-        self.pos_w = 0 
-        self.zero_w = 0 
-        self.total_time = 0
-        self.total_reward = 0
+    def calc_new_rho(self, delta, reward, time):
+        self.HMA_rho(reward,time,1.0)  # Weighted HMA with weight = 1.0 
 
-    def learn(self, state, action, reward, next_state, time):
-        if next_state not in self.q_table:
-            available_actions = self.get_available_actions(next_state)
-            self.q_table[next_state] = {action: 0 for action in available_actions}
-        best_next_action = max(self.q_table[next_state], key=self.q_table[next_state].get)
-        best_current_action = max(self.q_table[state], key=self.q_table[state].get)
-        deltarho = reward - self.rho * time
-        delta = deltarho + self.q_table[next_state][best_next_action] - self.q_table[state][action]
-        self._check_convergence(state, action, self.learning_rate * delta)
-        self.q_table[state][action] += self.learning_rate * delta
-
-        if not self.with_rho_trick or (self.with_rho_trick and action == best_current_action):
-            pos = 1 if reward > 0 else 0
-            neg = 1 if reward < 0 else 0
-            zero = 1 if reward == 0 else 0
-            reciprocal_rate = 0 if zero == 1 else time / reward
-
-            self.pos_reciprocal_rho = (1 - self.rho_learning_rate) * self.pos_reciprocal_rho + self.rho_learning_rate * reciprocal_rate * pos
-            self.pos_w = (1 - self.rho_learning_rate) * self.pos_w + self.rho_learning_rate * pos
-            H_pos = 0 if self.pos_reciprocal_rho == 0 else self.pos_w / self.pos_reciprocal_rho
-
-            self.neg_reciprocal_rho = (1 - self.rho_learning_rate) * self.neg_reciprocal_rho + self.rho_learning_rate * reciprocal_rate * neg
-            self.neg_w = (1 - self.rho_learning_rate) * self.neg_w + self.rho_learning_rate * neg
-            H_neg = 0 if self.neg_reciprocal_rho == 0 else self.neg_w / self.neg_reciprocal_rho
-
-            self.zero_w = (1 - self.rho_learning_rate) * self.zero_w + self.rho_learning_rate * zero
-
-            self.rho = (H_pos * self.pos_w + H_neg * self.neg_w) / (self.pos_w + self.neg_w + self.zero_w)
+# Experimental
 
 
-class HarmonicRLAgent2(RLAgent):
+class HarmonicRLAgent2(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
                  rho_learning_rate=0.3, **kwargs):
         super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
@@ -161,7 +103,7 @@ class HarmonicRLAgent2(RLAgent):
             self.total_reward += reward
 
 
-class AdaptiveHarmonicRLAgent2(RLAgent):
+class AdaptiveHarmonicRLAgent2(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
                  rho_learning_rate=0.3, **kwargs):
         super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
@@ -208,7 +150,7 @@ class AdaptiveHarmonicRLAgent2(RLAgent):
             self.total_reward += reward
 
 
-class AdaptiveHarmonicRLAgent(RLAgent):
+class AdaptiveHarmonicRLAgent(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
                  rho_learning_rate=0.3, **kwargs):
         super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
