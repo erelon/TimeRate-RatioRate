@@ -18,7 +18,7 @@ class SMARTRLAgent(ContinuousRLAgent):
         self.step_count = 0
         self.total_totals = 0
 
-    def calc_new_rho(self, delta, reward, time):
+    def calc_new_rho(self,reward,time,td_target,td_error):
             self.step_count += 1
             self.total_time += time
             self.total_reward += reward
@@ -59,8 +59,8 @@ class SMARTEMARLAgent(SMARTRLAgent):
         self.rho_reward = 0
 
 
-    def calc_new_rho(self, delta, reward, time):
-        super().calc_new_rho(delta, reward, time)  # Really, only needed to update the step count
+    def calc_new_rho(self,reward,time,td_target,td_error):
+        super().calc_new_rho(reward, time, td_target, td_error)  # Really, only needed to update the step count
 
         # Now override whatever super() did for self.rho
         b1 = self.beta

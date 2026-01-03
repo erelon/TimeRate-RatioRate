@@ -51,13 +51,13 @@ class HarmonicRLAgent(ContinuousRLAgent):
 
         self.rho = (H_pos * self.pos_w + H_neg * self.neg_w) / (self.pos_w + self.neg_w + self.zero_w)
 
-    def calc_new_rho(self, delta, reward, time):
+    def calc_new_rho(self, reward,time,td_target,td_error):
         self.HMA_rho(reward,time,reward)  # Weighted HMA with weight = reward
 
 
 class HarmonicROLAgent(HarmonicRLAgent):
 
-    def calc_new_rho(self, delta, reward, time):
+    def calc_new_rho(self, reward,time,td_target,td_error):
         self.HMA_rho(reward,time,1.0)  # Weighted HMA with weight = 1.0 
 
 # Experimental

@@ -66,9 +66,9 @@ def get_greedy_policy(agent, states, action_space):
 def main():
     # cfg = default_three_state_smdp_config()
     # cfg = long_three_state_smdp_config(10)
-    # cfg = loopy_three_state_smdp_config(10)
+    cfg = loopy_three_state_smdp_config(10)
     # cfg = hub_three_state_smdp_config()
-    cfg = gemini_three_state_smdp_config()
+    # cfg = gemini_three_state_smdp_config()
 
     env = SMDPEnvironment(cfg)
 
