@@ -84,14 +84,15 @@ def main():
     lr = 0.1
     beta = 0.01
     agents = [
-        QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
+        # QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
         RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
         SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
-        HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
+        # HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
         HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
+        StateSMARTRLAgent(name="State SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
     ]
 

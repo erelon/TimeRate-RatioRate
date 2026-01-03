@@ -32,12 +32,12 @@ class ContinuousQLearningAgent(Agent):
             return self.rng.choice(available_actions)
         return self.eval(state) 
 
-    def set_target(self, reward, time, next_q):
+    def set_target(self, reward, time, state, action, next_state, next_action):
         # df = math.exp(-self._lambda * time * self.discount_factor)   # Gemini says this is to be used if discount is given as RATE, rather than factor. 
         # See The Continuous Rate Case: Use $e^{-\gamma \tau}$Use this if: Your $\gamma$ is actually a continuous discount rate (often denoted as $\beta$ or $\rho$ in literature).In continuous-time control or specific SMDP literature (like Bradtke & Duff, 1995), discounting is often defined by a rate parameter $\beta$. 
 
         df = self.discount_factor**time
-        return reward + df * next_q
+        return reward + df * self.q_table[next_state][next_action]
 
     def update_table(self, state, action, reward, time,td_target, td_error, onpolicy):
         self.q_table[state][action] += self.learning_rate * td_error
@@ -46,16 +46,13 @@ class ContinuousQLearningAgent(Agent):
         self.initialize_table(next_state)
         best_next_action = self.eval(next_state)
         best_old_action = self.eval(state)  # Sometimes, it matters to the table updates -- see r-learning on-policy updates
-        td_target = self.set_target(reward,time, self.q_table[next_state][best_next_action])
+        td_target = self.set_target(reward,time, state, action, next_state, best_next_action)
         td_error = td_target - self.q_table[state][action]
 
         self._check_convergence(state, action, self.learning_rate * td_error)
         self.update_table(state,action,reward, time,td_target,td_error,(action==best_old_action))
 
 class QLearningAgent(ContinuousQLearningAgent):
-
-    # def set_target(self, reward, next_q):
-        # return reward + self.discount_factor * next_q
 
     def learn(self, state, action, reward, next_state, time):
         super().learn(state, action, reward, next_state, 1.0)

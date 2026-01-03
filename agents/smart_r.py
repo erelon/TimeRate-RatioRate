@@ -77,6 +77,7 @@ class SMARTEMARLAgent(SMARTRLAgent):
 
 ## Experimental
 
+
 class AdaptiveSMARTRLAgent(SMARTRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True, rho_learning_rate=0.3, **kwargs):
         super().__init__(
@@ -94,45 +95,5 @@ class AdaptiveSMARTRLAgent(SMARTRLAgent):
             self.learning_rate = 1 - (self.rho * time) / ((abs(deltarho) + self.rho * time))
         super().learn(state, action, reward, next_state, time)
 
-
-## Yet to be rewritten using class inhertitence
-
-class StateSMARTRLAgent(SMARTRLAgent):
-    def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
-                 rho_learning_rate=0.03, **kwargs):
-        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate,
-                         **kwargs)
-        self.time = {}
-        self.reward = {}
-
-    def learn(self, state, action, reward, next_state, time):
-        if next_state not in self.q_table:
-            available_actions = self.get_available_actions(next_state)
-            self.q_table[next_state] = {action: reward for action in available_actions}
-        if state not in self.q_table:
-            available_actions = self.get_available_actions(state)
-            self.q_table[state] = {action: reward for action in available_actions}
-
-        if next_state not in self.time:
-            self.time[next_state] = 0
-            self.reward[next_state] = 0
-        if state not in self.time:
-            self.time[state] = 0
-            self.reward[state] = 0
-
-        best_next_action = max(self.q_table[next_state], key=self.q_table[next_state].get)
-        best_current_action = max(self.q_table[state], key=self.q_table[state].get)
-
-        rho = (self.reward[state] / self.time[state]) if self.time[state] != 0 else 1
-        delta = reward - rho * time
-        new_q_state = delta + self.q_table[next_state][best_next_action]
-        self._check_convergence(state, action, self.learning_rate * (new_q_state - self.q_table[state][action]))
-        self.q_table[state][action] += self.learning_rate * (new_q_state - self.q_table[state][action])
-        if not self.with_rho_trick or (self.with_rho_trick and action == best_current_action):
-            self.reward[state] += reward
-            self.time[state] += time
-            self.total_time += time
-            self.total_reward += reward
-            self.rho = self.total_reward / self.total_time
 
 
