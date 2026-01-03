@@ -7,7 +7,7 @@ from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
 from smdp_env import * # SMDPEnvironment, * # default_three_state_smdp_config
 import numpy as np
 
-def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 10000, max_steps_per_episode: int = 20) -> Dict[ str, Any]:
+def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 200) -> Dict[ str, Any]:
     episode_returns: List[float] = []
     episode_times: List[float] = []
     rhos = []
@@ -64,10 +64,12 @@ def get_greedy_policy(agent, states, action_space):
 
 
 def main():
-    # cfg = feinberg1_three_state_smdp_config()  # multiple chains, only one policy possible.
-    cfg = bonus_unichain_smdp_config()
+    # cfg = bonus_unichain_smdp_config()
+    # cfg = hellorheaven_unichain_smdp_config() 
+    cfg = noisy_hellorheaven_unichain_smdp_config(0.5) 
 
     # All of these have multiple competing policies
+    # cfg = feinberg1_three_state_smdp_config()  # multiple chains, only one policy possible.
     # cfg = gemini_three_state_smdp_config()
     # cfg = long_three_state_smdp_config(10)
     # cfg = loopy_long_three_state_smdp_config(10)
@@ -77,9 +79,9 @@ def main():
     env = SMDPEnvironment(cfg)
 
     action_space = env.action_space
-    er = 1.0
-    no_update_on_explore = False 
-    lr = 0.01
+    er = 0.1
+    no_update_on_explore = True 
+    lr = 0.1
     beta = 0.01
     agents = [
         QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),

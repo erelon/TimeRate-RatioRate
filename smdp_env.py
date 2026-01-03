@@ -129,6 +129,118 @@ def bonus_unichain_smdp_config() -> SMDPConfig:
     return cfg
 
 
+def hellorheaven_unichain_smdp_config() -> SMDPConfig:
+    """
+    from s1 can take several actions.
+    action a leads to s2 with p = 1.0, tau = 1, r=0
+    action b leads to s3 with p = 1.0, tau = 1, r=100
+
+    from s2: 
+      action a leads to s2 w p=1.0, tau=1, r=1
+
+    from s3: 
+      action a leads to s3 w p=1.0, tau=1, r=-1
+
+
+    """
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+    s1, s2, s3 = "s1", "s2", "s3"
+    states=list([s1, s2])
+
+    A, B = 0, 1  # 0: action a, 1: action b
+    actions=list([A,B])
+
+    # s1, action a
+    transitions[(s1, A)] = [
+        Transition(next_state=s2, prob=1, reward=0.0, duration=1.0),
+    ]
+
+    # s1, action b
+    transitions[(s1, B)] = [
+        Transition(next_state=s3, prob=1, reward=100.0, duration=1.0),
+    ]
+
+    # s2, action a
+    transitions[(s2, A)] = [
+        Transition(next_state=s2, prob=1.0, reward=1.0, duration=1.0),
+    ]
+
+    # s3, action a
+    transitions[(s3, A)] = [
+        Transition(next_state=s3, prob=1.0, reward=-1.0, duration=1.0),
+    ]
+
+
+    cfg = SMDPConfig(
+        states=[s1, s2, s3],
+        actions=[A,B],
+        transitions=transitions,
+        start_state=s1,
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
+
+
+def noisy_hellorheaven_unichain_smdp_config(noise_factor: float) -> SMDPConfig:
+    """
+    from s1 can take several actions.
+    action a leads to s2 with p = 1.0, tau = 1, r=0
+    action b leads to s3 with p = 1.0, tau = 1, r=100
+
+    from s2: 
+      action a leads to s2 w p=1.0, tau=1, r=1
+      action b leads to s2 with tau=0, r = 1 or 2 at 0.5 prob
+
+    from s3: 
+      action a leads to s3 w p=1.0, tau=1, r=-1
+      action b leads to
+
+
+    """
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+    s1, s2, s3 = "s1", "s2", "s3"
+    states=list([s1, s2])
+
+    A, B = 0, 1  # 0: action a, 1: action b
+    actions=list([A,B])
+
+    # s1, action a
+    transitions[(s1, A)] = [
+        Transition(next_state=s2, prob=1, reward=0.0, duration=1.0),
+    ]
+
+    # s1, action b
+    transitions[(s1, B)] = [
+        Transition(next_state=s3, prob=1, reward=100.0, duration=1.0),
+    ]
+
+    # s2, action a
+    transitions[(s2, A)] = [
+        Transition(next_state=s2, prob=1.0, reward=1.0, duration=1.0),
+    ]
+
+    transitions[(s2, B)] = [
+        Transition(next_state=s2, prob=0.5, reward=1.0, duration=1.0),
+        Transition(next_state=s2, prob=0.5, reward=2.0, duration=1.0), 
+    ]
+
+    # s3, action a
+    transitions[(s3, A)] = [
+        Transition(next_state=s3, prob=1.0, reward=-1.0, duration=1.0),
+    ]
+
+
+    cfg = SMDPConfig(
+        states=[s1, s2, s3],
+        actions=[A,B],
+        transitions=transitions,
+        start_state=s1,
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
+
+
+
 def feinberg1_three_state_smdp_config() -> SMDPConfig:
     """Return the SMDPConfig that matches the provided 3-state diagram.
 
