@@ -99,7 +99,7 @@ def bonus_unichain_smdp_config() -> SMDPConfig:
     """
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
     s1, s2, s3 = "s1", "s2", "s3"
-    states=list([s1, s2, s3])
+    states=list([s1, s2])
 
     A, B = 0, 1  # 0: action a, 1: action b
     actions=list([A])
@@ -119,14 +119,8 @@ def bonus_unichain_smdp_config() -> SMDPConfig:
         Transition(next_state=s2, prob=1.0, reward=10.0, duration=1.0),
     ]
 
-    # s3, action a
-    transitions[(s3, A)] = [
-        Transition(next_state=s3, prob=1.0, reward=0.0, duration=1.0),
-    ]
-
-
     cfg = SMDPConfig(
-        states=[s1, s2, s3],
+        states=[s1, s2],
         actions=[A,B],
         transitions=transitions,
         start_state=s1,

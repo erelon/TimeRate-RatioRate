@@ -77,7 +77,7 @@ def main():
     env = SMDPEnvironment(cfg)
 
     action_space = env.action_space
-    er = 0.2
+    er = 0.1
     no_update_on_explore = True 
     lr = 0.1
     beta = 0.3
