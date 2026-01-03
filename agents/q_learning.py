@@ -9,6 +9,8 @@ class QLearningAgent(Agent):
         self.exploration_rate = exploration_rate
         self.q_table = {}
         self.policy_changed = False
+        self.rho = 0
+
 
     def act(self, state):
         if state not in self.q_table:
@@ -28,15 +30,29 @@ class QLearningAgent(Agent):
             self.q_table[state] = {action: MAX_REWARDS for action in available_actions}
         return max(self.q_table[state], key=self.q_table[state].get)
 
-    def learn(self, state, action, reward, next_state, time):
+    def initialize_table(self, state, next_state):
         if next_state not in self.q_table:
             available_actions = self.get_available_actions(next_state)
             self.q_table[next_state] = {action: MAX_REWARDS for action in available_actions}
-        best_next_action = max(self.q_table[next_state], key=self.q_table[next_state].get)
-        td_target = reward + self.discount_factor * self.q_table[next_state][best_next_action]
-        td_error = td_target - self.q_table[state][action]
-        self._check_convergence(state, action, self.learning_rate * td_error)
+
+    def select_best_action(self, state):
+        return max(self.q_table[state], key=self.q_table[state].get)
+
+    def set_target(self, reward, next_q):
+        return reward + self.discount_factor * next_q
+
+    def update_q_table(self, state, action, td_error):
         self.q_table[state][action] += self.learning_rate * td_error
+
+    def learn(self, state, action, reward, next_state, time):
+        self.initialize_table(state, next_state)
+        best_next_action = self.select_best_action(next_state)
+        td_target = self.set_target(reward,self.q_table[next_state][best_next_action])
+        td_error = td_target - self.q_table[state][action]
+
+        self._check_convergence(state, action, self.learning_rate * td_error)
+
+        self.update_q_table(state,action,td_error)
 
 class ContinuousQLearningAgent(QLearningAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, discount_factor=0.99, exploration_rate=0.1, _lambda=0.01, **kwargs):
