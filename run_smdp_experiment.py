@@ -7,7 +7,7 @@ from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
 from smdp_env import * # SMDPEnvironment, * # default_three_state_smdp_config
 import numpy as np
 
-def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 100) -> Dict[ str, Any]:
+def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 1000, max_steps_per_episode: int = 500) -> Dict[ str, Any]:
     episode_returns: List[float] = []
     episode_times: List[float] = []
     rhos = []
@@ -64,22 +64,26 @@ def get_greedy_policy(agent, states, action_space):
 
 
 def main():
-    # cfg = default_three_state_smdp_config()
-    # cfg = long_three_state_smdp_config(10)
-    cfg = loopy_three_state_smdp_config(10)
-    # cfg = hub_three_state_smdp_config()
+    # cfg = feinberg1_three_state_smdp_config()  # multiple chains, only one policy possible.
+    cfg = bonus_unichain_smdp_config()
+
+    # All of these have multiple competing policies
     # cfg = gemini_three_state_smdp_config()
+    # cfg = long_three_state_smdp_config(10)
+    # cfg = loopy_long_three_state_smdp_config(10)
+    # cfg = loopy_three_state_smdp_config()
+
 
     env = SMDPEnvironment(cfg)
 
     action_space = env.action_space
     er = 0.2
-    no_update_on_explore =True
+    no_update_on_explore = True 
     lr = 0.1
-    beta = 0.05
+    beta = 0.3
     agents = [
         QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
-        RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta),
+        RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
         SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),

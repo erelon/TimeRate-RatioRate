@@ -51,7 +51,6 @@ class SMARTEMARLAgent(SMARTRLAgent):
         )
         self.rho_time = 0
         self.rho_reward = 0
-        self.beta = rho_learning_rate
 
     def reset(self):
         super().reset()
@@ -63,8 +62,8 @@ class SMARTEMARLAgent(SMARTRLAgent):
         super().calc_new_rho(reward, time, td_target, td_error)  # Really, only needed to update the step count
 
         # Now override whatever super() did for self.rho
-        b1 = self.beta
-        b2 = self.beta
+        b1 = self.rho_learning_rate
+        b2 = self.rho_learning_rate
         
         # Option 1:  Relaxed smart (EMA r)/(EMA time)
         self.rho_time = (1 - b1) * self.rho_time + b1 * time

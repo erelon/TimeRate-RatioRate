@@ -11,7 +11,7 @@ class ContinuousRLAgent(ContinuousQLearningAgent):
         self.rho += self.rho_learning_rate * td_error
 
     def set_target(self, reward, time, next_q):
-        return (reward-self.rho*time+next_q)
+        return (reward-self.rho*time) + next_q
 
     def update_table(self, state, action, reward, time, td_target, td_error, onpolicy):
         super().update_table(state, action, reward, time, td_target, td_error, onpolicy)

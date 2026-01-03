@@ -86,6 +86,105 @@ class SMDPEnvironment:
         return self.state, chosen.reward, chosen.duration, done, info
 
 
+def bonus_unichain_smdp_config() -> SMDPConfig:
+    """
+    from s1 can take several actions.
+    action a leads to s2 with p = 1.0, tau = 1, r=0
+    action b leads to s2 with p = 1.0, tau = 1, r=100
+
+    from s2: 
+      action a leads to s2 w p=1.0, tau=1, r=10
+
+
+    """
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+    s1, s2, s3 = "s1", "s2", "s3"
+    states=list([s1, s2, s3])
+
+    A, B = 0, 1  # 0: action a, 1: action b
+    actions=list([A])
+
+    # s1, action a
+    transitions[(s1, A)] = [
+        Transition(next_state=s2, prob=1, reward=1.0, duration=1.0),
+    ]
+
+    # s1, action b
+    transitions[(s1, B)] = [
+        Transition(next_state=s2, prob=1, reward=100.0, duration=1.0),
+    ]
+
+    # s2, action a
+    transitions[(s2, A)] = [
+        Transition(next_state=s2, prob=1.0, reward=10.0, duration=1.0),
+    ]
+
+    # s3, action a
+    transitions[(s3, A)] = [
+        Transition(next_state=s3, prob=1.0, reward=0.0, duration=1.0),
+    ]
+
+
+    cfg = SMDPConfig(
+        states=[s1, s2, s3],
+        actions=[A,B],
+        transitions=transitions,
+        start_state=s1,
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
+
+
+def feinberg1_three_state_smdp_config() -> SMDPConfig:
+    """Return the SMDPConfig that matches the provided 3-state diagram.
+
+    States: s1, s2, s3
+    Actions: 0 -> action a
+
+    - At s1:
+        * action a leads to s2 with p=0.5, tau=1, r=0
+        * action a leads to s3 with p=0.5, tau=1, r=0
+    - At s2:
+        * action a leads to s2 with p=1.0, tau=1, r=1
+    - At s3:
+        * action a leads to s3 with p=1.0, tau=2, r=0
+
+    policy a@s1 should yield 0.5 according to time average
+    policy a@s1 yields 0.3 under ratio of expectations 
+
+    """
+
+    s1, s2, s3 = "s1", "s2", "s3"
+    A, B = 0, 1  # 0: action a, 1: action b
+
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+
+    # s1, action a
+    transitions[(s1, A)] = [
+        Transition(next_state=s2, prob=0.5, reward=0.0, duration=1.0),
+        Transition(next_state=s3, prob=0.5, reward=0.0, duration=1.0),
+    ]
+
+    # s2, action a
+    transitions[(s2, A)] = [
+        Transition(next_state=s2, prob=1.0, reward=1.0, duration=1.0),
+    ]
+
+    # s3, action a
+    transitions[(s3, A)] = [
+        Transition(next_state=s3, prob=1.0, reward=0.0, duration=2.0),
+    ]
+
+
+    cfg = SMDPConfig(
+        states=[s1, s2, s3],
+        actions=[A],
+        transitions=transitions,
+        start_state=s1,
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
+
 def gemini_three_state_smdp_config() -> SMDPConfig:
     """Return the SMDPConfig that matches the provided 3-state diagram.
 
@@ -93,18 +192,20 @@ def gemini_three_state_smdp_config() -> SMDPConfig:
     Actions: 0 -> action a, 1 -> action b
 
     From the gemini conversation at: https://gemini.google.com/app/02e42239d8664b7d 
-    policy a@s1 should yield 10 according to time average, better than b
-    policy a@s1 yields 1 under ratio of expectations, worse than b 
     - At s1:
         * action a leads to s2 with p=0.5, tau=1, r=20
         * action a leads to s3 with p=0.5, tau=19, r=0
         * action b leads to s1 with p=1.0, tau=1, r=4
     - At s2:
-        * action a leads to s1 with p=1.0, tau=1, r=20
+        * action a leads to s2 with p=1.0, tau=1, r=20
     - At s3:
-        * action a leads to s1 with p=1.0, tau=119, r=0
+        * action a leads to s3 with p=1.0, tau=19, r=0
 
-    This can be easily modified in code if you want to try other structures.
+    policy b@s1 yields 4 both for time rate as well as for ratio rate.
+
+    policy a@s1 should yield 10 according to time average, better than b
+    policy a@s1 yields 1 under ratio of expectations, worse than b 
+
     """
 
     s1, s2, s3 = "s1", "s2", "s3"
@@ -236,7 +337,7 @@ def long_three_state_smdp_config(k: int) -> SMDPConfig:
 
 
 
-def loopy_three_state_smdp_config(k: int) -> SMDPConfig:
+def loopy_long_three_state_smdp_config(k: int) -> SMDPConfig:
     """Return the SMDPConfig that matches the provided 3-state diagram.
 
     States: s1, s2_1,... s_2_k, s3_i, ... s_3_k
@@ -329,7 +430,7 @@ def loopy_three_state_smdp_config(k: int) -> SMDPConfig:
 
 
 
-def hub_three_state_smdp_config() -> SMDPConfig:
+def loopy_three_state_smdp_config() -> SMDPConfig:
     """Return the SMDPConfig that matches the provided 3-state diagram.
 
     States: s1, s2_1,... s_2_k, s3_i, ... s_3_k
