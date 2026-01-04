@@ -8,9 +8,10 @@ from .smart_r import SMARTRLAgent, SMARTEMARLAgent, AdaptiveSMARTRLAgent
 from .harmonic_r import HarmonicRLAgent, HarmonicRLAgent2, AdaptiveHarmonicRLAgent, AdaptiveHarmonicRLAgent2
 from .bandits import MAB, ContinuesMAB, UCB, ContinuosUCB
 from .multirho import StateSMARTRLAgent
+from .harmonic_average import hma
 
 __all__ = [
-    'Agent', 'MAX_REWARDS', 'OracleAgent', 'RandomAgent', 'QLearningAgent', 'ContinuousQLearningAgent', 'HarmonicQAgent',
+    'Agent', 'hma', 'MAX_REWARDS', 'OracleAgent', 'RandomAgent', 'QLearningAgent', 'ContinuousQLearningAgent', 'HarmonicQAgent',
     'RLAgent', 'ContinuousRLAgent', 'SMARTRLAgent', 'SMARTEMARLAgent', 'StateSMARTRLAgent', 'AdaptiveSMARTRLAgent',
     'HarmonicRLAgent', 'HarmonicRLAgent2', 'AdaptiveHarmonicRLAgent', 'AdaptiveHarmonicRLAgent2', 'MAB', 'ContinuesMAB', 'UCB', 'ContinuosUCB'
 ]
