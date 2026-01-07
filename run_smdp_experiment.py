@@ -91,8 +91,6 @@ def main():
                      rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
                          rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
-                        exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
 
         RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
                 rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
