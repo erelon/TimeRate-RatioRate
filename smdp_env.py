@@ -1,7 +1,7 @@
 from dataclasses import dataclass
+from symtable import Function
 from typing import Any, Dict, List, Tuple, Hashable, Optional
 import random
-
 
 State = Hashable
 Action = int
@@ -9,10 +9,31 @@ Action = int
 
 @dataclass
 class Transition:
-    next_state: State
-    prob: float
-    reward: float
-    duration: float  # tau
+    def __init__(self, next_state: State | Function, prob: float | Function, reward: float | Function, duration: float | Function):
+        self._next_state = next_state
+        self._prob = prob
+        self._reward = reward
+        self._duration = duration
+
+    def next_state(self) -> State:
+        if isinstance(self._next_state, Function):
+            return self._next_state()
+        return self._next_state
+
+    def prob(self) -> float:
+        if isinstance(self._prob, Function):
+            return self._prob()
+        return self._prob
+
+    def reward(self) -> float:
+        if callable(self._reward):
+            return self._reward()
+        return self._reward
+
+    def duration(self) -> float:
+        if callable(self._duration):
+            return self._duration()
+        return self._duration
 
 
 @dataclass
@@ -44,7 +65,7 @@ class SMDPEnvironment:
         self.states = list(config.states)
         self.action_space = sorted(set(config.actions))
 
-    def reset(self,seed: int=42) -> State:
+    def reset(self, seed: int = 42) -> State:
         self.state = self.config.start_state
         self.time_elapsed = 0.0
         self.total_reward = 0.0
@@ -67,7 +88,7 @@ class SMDPEnvironment:
 
         transitions = self.config.transitions[key]
         # sample according to probs
-        probs = [t.prob for t in transitions]
+        probs = [t.prob() for t in transitions]
         r = self.rng.random()
         cumulative = 0.0
         chosen: Transition = transitions[-1]
@@ -77,13 +98,16 @@ class SMDPEnvironment:
                 chosen = t
                 break
 
-        self.state = chosen.next_state
-        self.time_elapsed += chosen.duration
-        self.total_reward += chosen.reward
+        self.state = chosen.next_state()
+        duration = chosen.duration()
+        reward = chosen.reward()
+
+        self.time_elapsed += duration
+        self.total_reward += reward
 
         done = self.state in self.terminal_states
-        info = {"prob": chosen.prob}
-        return self.state, chosen.reward, chosen.duration, done, info
+        info = {"prob": p}
+        return self.state, reward, duration, done, info
 
 
 def bonus_unichain_smdp_config() -> SMDPConfig:
@@ -99,14 +123,14 @@ def bonus_unichain_smdp_config() -> SMDPConfig:
     """
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
     s1, s2, s3 = "s1", "s2", "s3"
-    states=list([s1, s2])
+    states = list([s1, s2])
 
     A, B = 0, 1  # 0: action a, 1: action b
-    actions=list([A])
+    actions = list([A])
 
     # s1, action a
     transitions[(s1, A)] = [
-        Transition(next_state=s2, prob=1, reward=1.0, duration=1.0),
+        Transition(next_state=s2, prob=1, reward=0.0, duration=1.0),
     ]
 
     # s1, action b
@@ -121,7 +145,7 @@ def bonus_unichain_smdp_config() -> SMDPConfig:
 
     cfg = SMDPConfig(
         states=[s1, s2],
-        actions=[A,B],
+        actions=[A, B],
         transitions=transitions,
         start_state=s1,
         terminal_states=[],  # continuing task; episodes cut off in runner
@@ -145,10 +169,10 @@ def hellorheaven_unichain_smdp_config() -> SMDPConfig:
     """
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
     s1, s2, s3 = "s1", "s2", "s3"
-    states=list([s1, s2])
+    states = list([s1, s2])
 
     A, B = 0, 1  # 0: action a, 1: action b
-    actions=list([A,B])
+    actions = list([A, B])
 
     # s1, action a
     transitions[(s1, A)] = [
@@ -157,7 +181,7 @@ def hellorheaven_unichain_smdp_config() -> SMDPConfig:
 
     # s1, action b
     transitions[(s1, B)] = [
-        Transition(next_state=s3, prob=1, reward=100.0, duration=1.0),
+        Transition(next_state=s3, prob=1, reward=1000.0, duration=1.0),
     ]
 
     # s2, action a
@@ -170,10 +194,9 @@ def hellorheaven_unichain_smdp_config() -> SMDPConfig:
         Transition(next_state=s3, prob=1.0, reward=-1.0, duration=1.0),
     ]
 
-
     cfg = SMDPConfig(
         states=[s1, s2, s3],
-        actions=[A,B],
+        actions=[A, B],
         transitions=transitions,
         start_state=s1,
         terminal_states=[],  # continuing task; episodes cut off in runner
@@ -199,10 +222,10 @@ def noisy_hellorheaven_unichain_smdp_config(noise_factor: float) -> SMDPConfig:
     """
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
     s1, s2, s3 = "s1", "s2", "s3"
-    states=list([s1, s2])
+    states = list([s1, s2])
 
     A, B = 0, 1  # 0: action a, 1: action b
-    actions=list([A,B])
+    actions = list([A, B])
 
     # s1, action a
     transitions[(s1, A)] = [
@@ -221,7 +244,7 @@ def noisy_hellorheaven_unichain_smdp_config(noise_factor: float) -> SMDPConfig:
 
     transitions[(s2, B)] = [
         Transition(next_state=s2, prob=0.5, reward=1.0, duration=1.0),
-        Transition(next_state=s2, prob=0.5, reward=2.0, duration=1.0), 
+        Transition(next_state=s2, prob=0.5, reward=2.0, duration=1.0),
     ]
 
     # s3, action a
@@ -229,16 +252,14 @@ def noisy_hellorheaven_unichain_smdp_config(noise_factor: float) -> SMDPConfig:
         Transition(next_state=s3, prob=1.0, reward=-1.0, duration=1.0),
     ]
 
-
     cfg = SMDPConfig(
         states=[s1, s2, s3],
-        actions=[A,B],
+        actions=[A, B],
         transitions=transitions,
         start_state=s1,
         terminal_states=[],  # continuing task; episodes cut off in runner
     )
     return cfg
-
 
 
 def feinberg1_three_state_smdp_config() -> SMDPConfig:
@@ -281,7 +302,6 @@ def feinberg1_three_state_smdp_config() -> SMDPConfig:
         Transition(next_state=s3, prob=1.0, reward=10.0, duration=2.0),
     ]
 
-
     cfg = SMDPConfig(
         states=[s1, s2, s3],
         actions=[A],
@@ -290,6 +310,7 @@ def feinberg1_three_state_smdp_config() -> SMDPConfig:
         terminal_states=[],  # continuing task; episodes cut off in runner
     )
     return cfg
+
 
 def gemini_three_state_smdp_config() -> SMDPConfig:
     """Return the SMDPConfig that matches the provided 3-state diagram.
@@ -340,8 +361,6 @@ def gemini_three_state_smdp_config() -> SMDPConfig:
         Transition(next_state=s1, prob=1.0, reward=4.0, duration=1.0),
     ]
 
-
-
     cfg = SMDPConfig(
         states=[s1, s2, s3],
         actions=[A, B],
@@ -375,8 +394,8 @@ def long_three_state_smdp_config(k: int) -> SMDPConfig:
     s1, s2, s3 = "s1", "s2", "s3"
     A, B = 0, 1  # 0: action a, 1: action b
 
-    states=list([s1, s2, s3])
-    actions=list([A])
+    states = list([s1, s2, s3])
+    actions = list([A])
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
 
     # s1, action a
@@ -390,47 +409,43 @@ def long_three_state_smdp_config(k: int) -> SMDPConfig:
         Transition(next_state="s2_1", prob=1.0, reward=1.0, duration=1.0),
     ]
 
-    for i in range(1, k+1):
+    for i in range(1, k + 1):
         si = f"s2_{i}"
         transitions[(si, A)] = [
-            Transition(next_state=f"s2_{i+1}", prob=1.0, reward=1.0 if i%2 else 1.0, duration=1.0 if i%2 else 1.0),
+            Transition(next_state=f"s2_{i + 1}", prob=1.0, reward=1.0 if i % 2 else 1.0,
+                       duration=1.0 if i % 2 else 1.0),
         ]
         states.append(si)
 
-    transitions[(f"s2_{k+1}", A)] = [
-        Transition(next_state=f"s2_{k+1}", prob=1.0, reward=1.0, duration=1.0),
+    transitions[(f"s2_{k + 1}", A)] = [
+        Transition(next_state=f"s2_{k + 1}", prob=1.0, reward=1.0, duration=1.0),
     ]
-    states.append(f"s2_{k+1}")
-
+    states.append(f"s2_{k + 1}")
 
     # s3, action a
     transitions[(s3, A)] = [
         Transition(next_state="s3_1", prob=1.0, reward=0.0, duration=2.0),
     ]
 
-    for i in range(1, k+1):
+    for i in range(1, k + 1):
         si = f"s3_{i}"
         transitions[(si, A)] = [
-            Transition(next_state=f"s3_{i+1}", prob=1.0, reward=0 if i%2 else 0, duration=2.0 if i%2 else 2.0),
+            Transition(next_state=f"s3_{i + 1}", prob=1.0, reward=0 if i % 2 else 0, duration=2.0 if i % 2 else 2.0),
         ]
         states.append(si)
 
-    transitions[(f"s3_{k+1}", A)] = [
-        Transition(next_state=f"s3_{k+1}", prob=1.0, reward=0, duration=2.0),
+    transitions[(f"s3_{k + 1}", A)] = [
+        Transition(next_state=f"s3_{k + 1}", prob=1.0, reward=0, duration=2.0),
     ]
-    states.append(f"s3_{k+1}")
-
-
-
+    states.append(f"s3_{k + 1}")
 
     # Action B
     actions.append(B)
 
     # s1, action b (self-loop)
     transitions[(s1, B)] = [
-        Transition(next_state=s1, prob=1.0, reward=0.4 , duration=1.0),  # reward = 2.0/5.0 = 0.4 
+        Transition(next_state=s1, prob=1.0, reward=0.4, duration=1.0),  # reward = 2.0/5.0 = 0.4
     ]
-
 
     cfg = SMDPConfig(
         states,
@@ -440,7 +455,6 @@ def long_three_state_smdp_config(k: int) -> SMDPConfig:
         terminal_states=[],  # continuing task; episodes cut off in runner
     )
     return cfg
-
 
 
 def loopy_long_three_state_smdp_config(k: int) -> SMDPConfig:
@@ -467,8 +481,8 @@ def loopy_long_three_state_smdp_config(k: int) -> SMDPConfig:
     s1, s2, s3 = "s1", "s2", "s3"
     A, B = 0, 1  # 0: action a, 1: action b
 
-    states=list([s1, s2, s3])
-    actions=list([A])
+    states = list([s1, s2, s3])
+    actions = list([A])
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
 
     # s1, action a
@@ -482,47 +496,44 @@ def loopy_long_three_state_smdp_config(k: int) -> SMDPConfig:
         Transition(next_state="s2_1", prob=1.0, reward=1.0, duration=8.0),
     ]
 
-    for i in range(1, k+1):
+    for i in range(1, k + 1):
         si = f"s2_{i}"
         transitions[(si, A)] = [
-            Transition(next_state=f"s2_{i+1}", prob=1.0, reward=1.0 if i%2 else 1.0, duration=8.0 if i%2 else 8.0),
+            Transition(next_state=f"s2_{i + 1}", prob=1.0, reward=1.0 if i % 2 else 1.0,
+                       duration=8.0 if i % 2 else 8.0),
         ]
         states.append(si)
 
-    transitions[(f"s2_{k+1}", A)] = [
+    transitions[(f"s2_{k + 1}", A)] = [
         Transition(next_state=s2, prob=1.0, reward=1.0, duration=8.0),
     ]
-    states.append(f"s2_{k+1}")
-
+    states.append(f"s2_{k + 1}")
 
     # s3, action a
     transitions[(s3, A)] = [
         Transition(next_state="s3_1", prob=1.0, reward=10.0, duration=2.0),
     ]
 
-    for i in range(1, k+1):
+    for i in range(1, k + 1):
         si = f"s3_{i}"
         transitions[(si, A)] = [
-            Transition(next_state=f"s3_{i+1}", prob=1.0, reward=10.0 if i%2 else 10.0, duration=2.0 if i%2 else 2.0),
+            Transition(next_state=f"s3_{i + 1}", prob=1.0, reward=10.0 if i % 2 else 10.0,
+                       duration=2.0 if i % 2 else 2.0),
         ]
         states.append(si)
 
-    transitions[(f"s3_{k+1}", A)] = [
+    transitions[(f"s3_{k + 1}", A)] = [
         Transition(next_state=s3, prob=1.0, reward=10.0, duration=2.0),
     ]
-    states.append(f"s3_{k+1}")
-
-
-
+    states.append(f"s3_{k + 1}")
 
     # Action B
     actions.append(B)
 
     # s1, action b (self-loop)
     transitions[(s1, B)] = [
-        Transition(next_state=s1, prob=1.0, reward=0.4 , duration=1.0),  # reward = 2.0/5.0 = 0.4 
+        Transition(next_state=s1, prob=1.0, reward=0.4, duration=1.0),  # reward = 2.0/5.0 = 0.4
     ]
-
 
     cfg = SMDPConfig(
         states,
@@ -532,8 +543,6 @@ def loopy_long_three_state_smdp_config(k: int) -> SMDPConfig:
         terminal_states=[],  # continuing task; episodes cut off in runner
     )
     return cfg
-
-
 
 
 def loopy_three_state_smdp_config() -> SMDPConfig:
@@ -556,8 +565,8 @@ def loopy_three_state_smdp_config() -> SMDPConfig:
     s1, s2, s3 = "s1", "s2", "s3"
     A, B = 0, 1  # 0: action a, 1: action b
 
-    states=list([s1, s2, s3])
-    actions=list([A])
+    states = list([s1, s2, s3])
+    actions = list([A])
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
 
     # s1, action a
@@ -593,3 +602,50 @@ def loopy_three_state_smdp_config() -> SMDPConfig:
     )
     return cfg
 
+
+def schwartz_first_loop_smdp_config() -> SMDPConfig:
+    """Return the SMDPConfig that matches the Schwartz first loop example.
+
+    States: s1, s2
+    Actions: 0 -> action a, 1 -> action b
+
+    - At s1:
+        * action a leads to s2 with p=1.0, tau=1, r=0
+    - At s2:
+        * action a leads to s1 with p=1.0, tau=2, r=10
+
+    """
+
+    A, B = 0, 1
+    loop_for = 49
+
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+    states = ["s0"]
+    def one_or_minus_one():
+        return 1 if random.random() < 0.5 else -1
+
+    # one_or_minus_one = 1
+    for l in range(loop_for):
+        states.append(f"s{l + 1}")
+        transitions[(f"s{l}", B)] = [
+            Transition(next_state=f"s{l + 1}", prob=1.0, reward=one_or_minus_one, duration=1.0),
+        ]
+        transitions[(f"s{l}", A)] = [
+            Transition(next_state=f"s{l}", prob=1.0, reward=one_or_minus_one, duration=1.0),
+        ]
+
+    transitions[(f"s{l + 1}", B)] = [
+        Transition(next_state="s0", prob=1.0, reward=50.0, duration=1.0),
+    ]
+    transitions[(f"s{l + 1}", A)] = [
+        Transition(next_state=f"s{l + 1}", prob=1.0, reward=one_or_minus_one, duration=1.0),
+    ]
+
+    cfg = SMDPConfig(
+        states=states,
+        actions=[A, B],
+        transitions=transitions,
+        start_state=states[0],
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
