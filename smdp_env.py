@@ -9,7 +9,7 @@ Action = int
 
 @dataclass
 class Transition:
-    def __init__(self, next_state: State | Function, prob: float | Function, reward: float | Function, duration: float | Function):
+    def __init__(self, next_state, prob, reward, duration):
         self._next_state = next_state
         self._prob = prob
         self._reward = reward
@@ -65,11 +65,19 @@ class SMDPEnvironment:
         self.states = list(config.states)
         self.action_space = sorted(set(config.actions))
 
+        self.reset(seed)
+
     def reset(self, seed: int = 42) -> State:
         self.state = self.config.start_state
         self.time_elapsed = 0.0
         self.total_reward = 0.0
         self.rng = random.Random(seed)
+
+        for tl in self.config.transitions.values():
+            for t in tl:
+                for ob in t.__dict__:
+                    if "reset" in dir(t.__dict__[ob]):
+                        t.__dict__[ob].reset()
 
         return self.state
 
@@ -621,6 +629,7 @@ def schwartz_first_loop_smdp_config() -> SMDPConfig:
 
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
     states = ["s0"]
+
     def one_or_minus_one():
         return 1 if random.random() < 0.5 else -1
 
@@ -646,6 +655,70 @@ def schwartz_first_loop_smdp_config() -> SMDPConfig:
         actions=[A, B],
         transitions=transitions,
         start_state=states[0],
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
+
+
+def non_stationary_simple_unichain() -> SMDPConfig:
+    """Return the SMDPConfig that matches a non-stationary simple unichain example.
+
+    States: s1, s2
+    Actions: 0 -> action a, 1 -> action b
+
+    - At s1:
+        * action a leads to s2 with p=1.0, tau=1, r=0
+    - At s2:
+        * action a leads to s1 with p=1.0, tau=2, r=10
+
+    """
+
+    A, B = 0, 1
+
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+    s1, s2 = "s1", "s2"
+    states = [s1, s2]
+
+    class Reward:
+        def __init__(self):
+            self.reset()
+
+        def __call__(self):
+            self.current *= 1.5
+            return self.current
+
+        def reset(self):
+            self.current = 1.0
+
+    class Duration:
+        def __init__(self):
+            self.reset()
+
+        def __call__(self):
+            self.current *= 2
+            return self.current
+
+        def reset(self):
+            self.current = 1.0
+
+    # s1, action a
+    transitions[(s1, A)] = [
+        Transition(next_state=s2, prob=1.0, reward=Reward(), duration=Duration()),
+    ]
+    transitions[(s1, B)] = [
+        Transition(next_state=s2, prob=1.0, reward=10.0, duration=1.0),
+    ]
+
+    # s2, action a
+    transitions[(s2, A)] = [
+        Transition(next_state=s1, prob=1.0, reward=0.0, duration=1.0),
+    ]
+
+    cfg = SMDPConfig(
+        states=states,
+        actions=[A, B],
+        transitions=transitions,
+        start_state=s1,
         terminal_states=[],  # continuing task; episodes cut off in runner
     )
     return cfg

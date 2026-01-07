@@ -14,9 +14,9 @@ class HarmonicRLAgent(ContinuousRLAgent):
         super().reset()
         self.pos_reciprocal_rho = 0.0
         self.neg_reciprocal_rho = 0.0
-        self.neg_w1 = 0
+        self.neg_w1 = 1
         self.neg_w2 = 0
-        self.pos_w1 = 0
+        self.pos_w1 = 1
         self.pos_w2 = 0
         self.zero_w = 0
 

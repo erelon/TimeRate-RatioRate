@@ -4,10 +4,12 @@ from agents import *
 from agents.r_learning import RLAgent
 from agents.smart_r import AdaptiveSMARTRLAgent, SMARTRLAgent, SMARTEMARLAgent
 from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
-from smdp_env import * # SMDPEnvironment, * # default_three_state_smdp_config
+from smdp_env import *  # SMDPEnvironment, * # default_three_state_smdp_config
 import numpy as np
 
-def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 200) -> Dict[ str, Any]:
+
+def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 20) -> Dict[
+    str, Any]:
     episode_returns: List[float] = []
     episode_times: List[float] = []
     rhos = []
@@ -60,8 +62,9 @@ def get_greedy_policy(agent, states, action_space):
 
 
 def main():
-    cfg = bonus_unichain_smdp_config()
+    # cfg = bonus_unichain_smdp_config()
     # cfg = schwartz_first_loop_smdp_config()
+    cfg = non_stationary_simple_unichain()
 
     # All of these have multiple competing policies
     # cfg = noisy_hellorheaven_unichain_smdp_config(0.5)
@@ -75,24 +78,25 @@ def main():
     env = SMDPEnvironment(cfg)
 
     action_space = env.action_space
-    er = 0.05
+    er = 0.1
     no_update_on_explore = True
-    lr = 0.1
-    beta = 0.001
+    lr = 0.2
+    beta = 0.01
     agents = [
-        QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
-        RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
-                rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
-                     rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-
+        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
+                        exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
                         rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-
+        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                     rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
                          rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
                         exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+
+        RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+        QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
 
     ]
 
@@ -108,8 +112,9 @@ def main():
         }
 
     # Print comparison table
-    states = env.states#[:3]
-    header_cols = ["Agent", "TotalReturn", "Total Time", "R/T" , "rho", "ConvergedAt"] + [f"strategy({s})" for s in states]
+    states = env.states  # [:3]
+    header_cols = ["Agent", "TotalReturn", "Total Time", "R/T", "rho", "ConvergedAt"] + [f"strategy({s})" for s in
+                                                                                         states]
     rows = []
     for agent_name, res in results.items():
         row = [
