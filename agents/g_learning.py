@@ -1,5 +1,5 @@
 from .q_learning import ContinuousQLearningAgent
-from .average_rates import HMA, TIME_RATE, RATIO_RATE_EMA
+from .average_rates import hma, TIME_RATE, RATIO_RATE_EMA
 
 class ContinuousGLearningAgent(ContinuousQLearningAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.2, exploration_rate=0.1, **kwargs):

@@ -12,7 +12,7 @@ from .average_rates import *
 from .g_learning import GLearningAgent
 
 __all__ = [
-    'Agent', 'HMA', 'MAX_REWARDS', 'OracleAgent', 'RandomAgent', 'QLearningAgent', 'ContinuousQLearningAgent', 'HarmonicQAgent',
+    'Agent', 'hma', 'MAX_REWARDS', 'OracleAgent', 'RandomAgent', 'QLearningAgent', 'ContinuousQLearningAgent', 'HarmonicQAgent',
     'RLAgent', 'ContinuousRLAgent', 'SMARTRLAgent', 'SMARTEMARLAgent', 'StateSMARTRLAgent', 'AdaptiveSMARTRLAgent',
     'HarmonicRLAgent', 'HarmonicRLAgent2', 'AdaptiveHarmonicRLAgent', 'AdaptiveHarmonicRLAgent2', 'MAB', 'ContinuesMAB', 'UCB', 'ContinuosUCB',
      'GLearningAgent',

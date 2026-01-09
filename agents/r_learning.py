@@ -1,5 +1,5 @@
 from .q_learning import ContinuousQLearningAgent
-from .average_rates import HMA, TIME_RATE, RATIO_RATE_EMA
+from .average_rates import hma, TIME_RATE, RATIO_RATE_EMA
 
 
 class ContinuousRLAgent(ContinuousQLearningAgent):

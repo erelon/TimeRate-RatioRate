@@ -1,12 +1,13 @@
 import sys
 from .r_learning import ContinuousRLAgent
-from .average_rates import HMA, TIME_RATE, RATIO_RATE_EMA
+from .average_rates import hma, TIME_RATE, RATIO_RATE_EMA
+
 
 class HarmonicRLAgent(ContinuousRLAgent):
 
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True, rho_learning_rate=0.3, **kwargs):
         super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
-        self.RHO = HMA(rho_learning_rate)
+        self.RHO = hma(rho_learning_rate)
 
     def reset(self):
         super().reset()
@@ -28,7 +29,8 @@ class HarmonicROLAgent(HarmonicRLAgent):
 class HarmonicRLAgent2(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
                  rho_learning_rate=0.3, **kwargs):
-        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
+        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate,
+                         **kwargs)
         self.rq_table = {}
         self.reciprocal_rho = 1.0
         self.total_time = 0
@@ -68,7 +70,8 @@ class HarmonicRLAgent2(ContinuousRLAgent):
 class AdaptiveHarmonicRLAgent2(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
                  rho_learning_rate=0.3, **kwargs):
-        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
+        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate,
+                         **kwargs)
         self.rq_table = {}
         self.reciprocal_rho = 1.0
         self.error_scale = 1.0
@@ -115,7 +118,8 @@ class AdaptiveHarmonicRLAgent2(ContinuousRLAgent):
 class AdaptiveHarmonicRLAgent(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
                  rho_learning_rate=0.3, **kwargs):
-        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
+        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate,
+                         **kwargs)
         self.reciprocal_rho = 1.0
         self.total_time = 0
         self.total_reward = 0
@@ -139,7 +143,7 @@ class AdaptiveHarmonicRLAgent(ContinuousRLAgent):
         self.q_table[state][action] += alpha * delta
         if not self.with_rho_trick or (self.with_rho_trick and action == best_current_action):
             self.reciprocal_rho = (1 - self.rho_learning_rate) * self.reciprocal_rho + self.rho_learning_rate * (
-                        time / (reward))
+                    time / (reward))
             self.rho = 1 / self.reciprocal_rho
             self.total_time += time
             self.total_reward += reward

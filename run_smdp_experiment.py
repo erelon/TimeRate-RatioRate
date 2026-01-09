@@ -4,10 +4,12 @@ from agents import *
 from agents.r_learning import RLAgent
 from agents.smart_r import AdaptiveSMARTRLAgent, SMARTRLAgent, SMARTEMARLAgent
 from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
-from smdp_env import * # SMDPEnvironment, * # default_three_state_smdp_config
+from smdp_env import *  # SMDPEnvironment, * # default_three_state_smdp_config
 import numpy as np
 
-def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 200) -> Dict[ str, Any]:
+
+def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 20) -> Dict[
+    str, Any]:
     episode_returns: List[float] = []
     episode_times: List[float] = []
     rhos = []
@@ -17,15 +19,11 @@ def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_
         total_reward = 0.0
         total_time = 0.0
         steps = 0
-        # agent.reset()
         while steps < max_steps_per_episode:
-            # if state not in agent.q_table:
-                # available_actions = env.get_available_actions(state)
-                # agent.q_table[state] = {a: 0 for a in available_actions}
             action = agent.act(state)
             next_state, reward, duration, done, _ = env.step(action)
             agent.learn(state, action, reward, next_state, duration)
-            # print(f"Episode {episode_idx}, Step {steps}, State {state}, Action {action}, rho {agent.rho:.4f} reward {reward}/{duration} q: {agent.q_table} ")
+
             # Track convergence
             if agent.policy_changed:
                 agent.last_policy_changed_at = episode_idx
@@ -51,7 +49,7 @@ def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_
         "total_return": sum(episode_returns),
         "total_time": sum(episode_times),
         "converged_at": agent.last_policy_changed_at,
-        "rho": agent.rho # np.mean(rhos)
+        "rho": agent.rho  # np.mean(rhos)
     }
 
 
@@ -67,35 +65,40 @@ def get_greedy_policy(agent, states, action_space):
 
 
 def main():
-    cfg = bonus_unichain_smdp_config()
-    # cfg = hellorheaven_unichain_smdp_config() 
-    # cfg = noisy_hellorheaven_unichain_smdp_config(0.5) 
+    # cfg = bonus_unichain_smdp_config()
+    # cfg = schwartz_first_loop_smdp_config()
+    cfg = non_stationary_simple_unichain()
 
     # All of these have multiple competing policies
+    # cfg = noisy_hellorheaven_unichain_smdp_config(0.5)
+    # cfg = hellorheaven_unichain_smdp_config()
     # cfg = feinberg1_three_state_smdp_config()  # multiple chains, only one policy possible.
     # cfg = gemini_three_state_smdp_config()
     # cfg = long_three_state_smdp_config(10)
     # cfg = loopy_long_three_state_smdp_config(10)
     # cfg = loopy_three_state_smdp_config()
 
-
     env = SMDPEnvironment(cfg)
 
     action_space = env.action_space
     er = 0.1
-    no_update_on_explore = True 
-    lr = 0.1
+    no_update_on_explore = True
+    lr = 0.2
     beta = 0.01
     agents = [
+        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
+                        exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                        rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                     rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+        HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                         rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+
+        RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
         GLearningAgent(name="G-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
-        RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
-
-        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
-
-        # HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
-        # HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
         # StateSMARTRLAgent(name="State SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
     ]
@@ -112,14 +115,16 @@ def main():
         }
 
     # Print comparison table
-    states = env.states[:3]
-    header_cols = ["Agent", "TotalReturn", "Total Time", "rho", "ConvergedAt"] + [f"strategy({s})" for s in states]
+    states = env.states  # [:3]
+    header_cols = ["Agent", "TotalReturn", "Total Time", "R/T", "rho", "ConvergedAt"] + [f"strategy({s})" for s in
+                                                                                         states]
     rows = []
     for agent_name, res in results.items():
         row = [
             agent_name,
             f"{res['total_return']:.2f}",
             f"{res['total_time']:.2f}",
+            f"{res['total_return'] / res['total_time']:.2f}",
             f"{res['rho']:.4f}" if res["rho"] is not None else "-",
             str(res['converged_at']),
         ]
