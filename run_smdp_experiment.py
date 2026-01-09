@@ -42,6 +42,9 @@ def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_
         rhos.append(agent.rho)
 
     print(f"Finished training {agent.name}: rho = {agent.rho:.4f} q:{agent.q_table}")
+    if hasattr(agent, 'action_count_table'):
+        print(f"other:{agent.action_count_table}")
+        print(f"tmp:{agent.tmp}")
 
     return {
         "episode_returns": episode_returns,
@@ -64,9 +67,9 @@ def get_greedy_policy(agent, states, action_space):
 
 
 def main():
-    # cfg = bonus_unichain_smdp_config()
+    cfg = bonus_unichain_smdp_config()
     # cfg = hellorheaven_unichain_smdp_config() 
-    cfg = noisy_hellorheaven_unichain_smdp_config(0.5) 
+    # cfg = noisy_hellorheaven_unichain_smdp_config(0.5) 
 
     # All of these have multiple competing policies
     # cfg = feinberg1_three_state_smdp_config()  # multiple chains, only one policy possible.
@@ -84,15 +87,16 @@ def main():
     lr = 0.1
     beta = 0.01
     agents = [
-        # QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
+        QLearningAgent(name="Q-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
+        GLearningAgent(name="G-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er),
         RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
         SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
         # HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
-        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
-        StateSMARTRLAgent(name="State SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
+        # HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
+        # StateSMARTRLAgent(name="State SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er, rho_learning_rate=beta,with_rho_trick=no_update_on_explore),
 
     ]
 

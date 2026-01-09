@@ -1,42 +1,45 @@
 from .r_learning import ContinuousRLAgent, RLAgent
+from .average_rates import TIME_RATE, RATIO_RATE_EMA
 
 class SMARTRLAgent(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
                  rho_learning_rate=0.3, **kwargs):
         super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate,
                          **kwargs)
+        self.RHO = TIME_RATE()  ## TODO: replace below by TIME_RATE structure
         self.total_time = 0
         self.total_reward = 0
         self.step_count = 0
         self.total_totals = 0
-        self.beta = rho_learning_rate
 
     def reset(self):
         super().reset()
+        self.RHO.reset()
         self.total_time = 0
         self.total_reward = 0
         self.step_count = 0
         self.total_totals = 0
 
     def calc_new_rho(self,reward,time,td_target,td_error):
-            self.step_count += 1
-            self.total_time += time
-            self.total_reward += reward
-            # SMART
-            self.rho = self.total_reward / self.total_time
+        self.step_count += 1
+        self.total_time += time
+        self.total_reward += reward
+        # SMART
+        self.rho = self.total_reward / self.total_time
 
-            # AVG (sum_r/T): Option 1
-            # self.beta=(1.0/(self.step_count+1))
-            # self.rho = (1-self.beta)*self.rho + self.beta*(self.total_reward / self.total_time)
+        # AVG (sum_r/T): Option 1
+        # self.beta=(1.0/(self.step_count+1))
+        # self.rho = (1-self.beta)*self.rho + self.beta*(self.total_reward / self.total_time)
 
-            # AVG (sum_r/T): Option 2
-            # self.total_totals += (self.total_reward / self.total_time)
-            # self.rho = self.total_totals / self.step_count
+        # AVG (sum_r/T): Option 2
+        # self.total_totals += (self.total_reward / self.total_time)
+        # self.rho = self.total_totals / self.step_count
 
-            # AVG(sum r) / T
-            # self.total_totals += self.total_reward
-            # self.rho = (self.total_totals / (self.step_count)) / self.total_time
-            # print(f"total_totals {self.total_totals}, step_count {self.step_count} avg {(self.total_totals / (self.step_count))} total_reward {self.total_reward} reward {reward} total_time {self.total_time} rho {self.rho}")
+        # AVG(sum r) / T
+        # self.total_totals += self.total_reward
+        # self.rho = (self.total_totals / (self.step_count)) / self.total_time
+        # print(f"total_totals {self.total_totals}, step_count {self.step_count} avg {(self.total_totals / (self.step_count))} total_reward {self.total_reward} reward {reward} total_time {self.total_time} rho {self.rho}")
+
 
 class SMARTEMARLAgent(SMARTRLAgent):
     """
@@ -49,6 +52,7 @@ class SMARTEMARLAgent(SMARTRLAgent):
         super().__init__(
             name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs
         )
+        self.RHO = RATIO_RATE_EMA(rho_learning_rate)  ## TODO: replace below by RHO structure
         self.rho_time = 0
         self.rho_reward = 0
 

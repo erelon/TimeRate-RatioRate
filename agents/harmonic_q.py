@@ -1,7 +1,10 @@
 import sys
-from .r_learning import ContinuousRLAgent
 
-class HarmonicQAgent(QLearningAgent):
+from agents import ContinuousQLearningAgent
+from .r_learning import ContinuousRLAgent
+from .harmonic_average import HMA
+
+class HarmonicQAgent(ContinuousQLearningAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, discount_factor=0.99, exploration_rate=0.1, **kwargs):
         super().__init__(name, action_space, learning_rate, discount_factor, exploration_rate, **kwargs)
         self.rq_table = {}
@@ -14,11 +17,11 @@ class HarmonicQAgent(QLearningAgent):
         super().initialize_table(state)
         if state not in self.rq_table:
             available_actions = self.get_available_actions(state)
-            self.rq_table[state] = {action: 0 for action in available_actions} 
+            self.rq_table[state] = {action: HMA(self.learning_rate) for action in available_actions} 
 
     def update_table(self, state, action, reward, time, td_target, td_error, onpolicy):
         super().update_table(state, action, reward, time, td_target, td_error, onpolicy)
-        self.rq_table[state][action] += 
+        self.rq_table[state][action].update_rho(reward,time,reward)  
 
     def set_target(self, reward, time, state, action, next_state, next_action):
         rho = (self.reward[state][action] / self.time[state][action]) if self.time[state][action] != 0 else 0 
@@ -32,6 +35,28 @@ class HarmonicQAgent(QLearningAgent):
         self.rq_table[state][action] += self.learning_rate * td_error
         self._check_convergence(state, action, 1 / self.rq_table[state][action], True)
         self.q_table[state][action] = 1 / self.rq_table[state][action]
+
+
+
+class HarmonicRLAgent(ContinuousRLAgent):
+
+    def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True, rho_learning_rate=0.3, **kwargs):
+        super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
+        self.RHO = HMA(rho_learning_rate)
+
+    def reset(self):
+        super().reset()
+        self.hma.reset()
+
+    def calc_new_rho(self, reward,time,td_target,td_error):
+        self.rho = self.hma.update_hma(reward,time,reward)  # Weighted HMA with weight = reward
+
+
+class HarmonicROLAgent(HarmonicRLAgent):
+
+    def calc_new_rho(self, reward,time,td_target,td_error):
+        self.rho = self.hma.update_hma(reward,time,1.0)  # Weighted HMA with weight = 1.0 
+
 
 
 class HarmonicRLAgent(ContinuousRLAgent):

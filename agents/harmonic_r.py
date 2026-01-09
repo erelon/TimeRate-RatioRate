@@ -1,27 +1,28 @@
 import sys
 from .r_learning import ContinuousRLAgent
-from .harmonic_average import hma
+from .average_rates import HMA, TIME_RATE, RATIO_RATE_EMA
 
 class HarmonicRLAgent(ContinuousRLAgent):
 
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True, rho_learning_rate=0.3, **kwargs):
         super().__init__(name, action_space, learning_rate, exploration_rate, with_rho_trick, rho_learning_rate, **kwargs)
-        self.hma = hma(rho_learning_rate)
+        self.RHO = HMA(rho_learning_rate)
 
     def reset(self):
         super().reset()
-        self.hma.reset()
+        self.RHO.reset()
 
     def calc_new_rho(self, reward,time,td_target,td_error):
-        self.rho = self.hma.update_hma(reward,time,reward)  # Weighted HMA with weight = reward
+        self.rho = self.RHO.update_rho(reward,time,reward)  # Weighted HMA with weight = reward
 
 
 class HarmonicROLAgent(HarmonicRLAgent):
 
     def calc_new_rho(self, reward,time,td_target,td_error):
-        self.rho = self.hma.update_hma(reward,time,1.0)  # Weighted HMA with weight = 1.0 
+        self.rho = self.RHO.update_rho(reward,time,1.0)  # Weighted HMA with weight = 1.0 
 
-# Experimental
+
+# Below, to be rewritten or deleted
 
 
 class HarmonicRLAgent2(ContinuousRLAgent):
