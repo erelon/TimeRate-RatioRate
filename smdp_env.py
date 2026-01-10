@@ -684,22 +684,22 @@ def non_stationary_simple_unichain() -> SMDPConfig:
             self.reset()
 
         def __call__(self):
-            self.current *= 1.5
+            self.current *=1 
             return self.current
 
         def reset(self):
-            self.current = 1.0
+            self.current = 5.0
 
     class Duration:
         def __init__(self):
             self.reset()
 
         def __call__(self):
-            self.current *= 2
+            self.current *= 1.5
             return self.current
 
         def reset(self):
-            self.current = 1.0
+            self.current = 10.0
 
     # s1, action a
     transitions[(s1, A)] = [
