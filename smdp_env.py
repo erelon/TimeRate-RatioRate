@@ -6,6 +6,47 @@ import random
 State = Hashable
 Action = int
 
+@dataclass
+class NonStochasticFunction:
+    def __init__(self, ground, seed, func: Any):
+        self.seed = seed
+        self.func = func
+        self.ground = ground
+        self.reset()
+
+    def reset(self):
+        self.rng = random.Random(self.seed)
+        self.counter = self.ground 
+
+    def __call__(self):
+        self.counter += 1
+        return self.func(self.rng,self.counter)
+
+def exponential_reward(rng: random.Random, counter: int) -> float:
+    return 2 ** counter
+
+class Reward:
+    def __init__(self):
+        self.reset()
+
+    def __call__(self):
+        self.current *= 1.5
+        return self.current
+
+    def reset(self):
+        self.current = 1.0
+
+class Duration:
+    def __init__(self):
+        self.reset()
+
+    def __call__(self):
+        self.current *= 2
+        return self.current
+
+    def reset(self):
+        self.current = 1.0
+
 
 @dataclass
 class Transition:
@@ -679,27 +720,6 @@ def non_stationary_simple_unichain() -> SMDPConfig:
     s1, s2 = "s1", "s2"
     states = [s1, s2]
 
-    class Reward:
-        def __init__(self):
-            self.reset()
-
-        def __call__(self):
-            self.current *=1 
-            return self.current
-
-        def reset(self):
-            self.current = 5.0
-
-    class Duration:
-        def __init__(self):
-            self.reset()
-
-        def __call__(self):
-            self.current *= 1.5
-            return self.current
-
-        def reset(self):
-            self.current = 10.0
 
     # s1, action a
     transitions[(s1, A)] = [
