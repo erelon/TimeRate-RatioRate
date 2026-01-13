@@ -1,31 +1,13 @@
 from dataclasses import dataclass
 from symtable import Function
 from typing import Any, Dict, List, Tuple, Hashable, Optional
+from non-stationary import *
 import random
 
 State = Hashable
 Action = int
 
-@dataclass
-class NonStochasticFunction:
-    def __init__(self, ground, seed, func: Any):
-        self.seed = seed
-        self.func = func
-        self.ground = ground
-        self.reset()
-
-    def reset(self):
-        self.rng = random.Random(self.seed)
-        self.counter = self.ground 
-
-    def __call__(self):
-        self.counter += 1
-        return self.func(self.rng,self.counter)
-
-def exponential_reward(rng: random.Random, counter: int) -> float:
-    return 2 ** counter
-
-class Reward:
+class Reward:  # TODO: rewrite as a non-stochastic class -- see "non-stationary"
     def __init__(self):
         self.reset()
 
