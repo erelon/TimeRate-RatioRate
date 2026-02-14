@@ -1,0 +1,417 @@
+import os
+from typing import Any, List, Dict
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+from collections import defaultdict
+
+from agents.smart_r import SMARTRLAgent, SMARTEMARLAgent
+from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
+from more_smdp_envs import SMDPConfigFactory
+from run_smdp_experiment import train_agent, get_greedy_policy
+from smdp_env import *
+
+
+def _slugify(name: str) -> str:
+    # Simple filesystem-friendly slug: lowercase, spaces and bad chars to '_'
+    import re
+    name = name.strip().lower()
+    name = re.sub(r"[^a-z0-9]+", "_", name)
+    name = re.sub(r"_+", "_", name).strip("_")
+    return name or "env"
+
+
+def sample_distributions_directly(cfg: SMDPConfig, num_samples: int = 300) -> Dict[str, Any]:
+    """
+    Sample rewards and durations directly from the distributions for each action,
+    independent of agent behavior. This shows the true distribution behavior over time.
+
+    Note: num_samples should match max_steps_per_episode since distributions reset each episode.
+    """
+    dist_rewards: Dict[int, List[float]] = defaultdict(list)
+    dist_durations: Dict[int, List[float]] = defaultdict(list)
+
+    # Get transitions from start state for actions A and B
+    start_state = cfg.start_state
+
+    for action in cfg.actions:
+        key = (start_state, action)
+        if key not in cfg.transitions:
+            continue
+
+        # Get the transition (assuming single transition per state-action)
+        transition = cfg.transitions[key][0]
+
+        # Reset the distributions
+        if hasattr(transition._reward, 'reset') and callable(transition._reward.reset):
+            transition._reward.reset()
+        elif hasattr(transition._reward, 'dist') and hasattr(transition._reward.dist, 'reset'):
+            transition._reward.dist.reset()
+
+        if hasattr(transition._duration, 'reset') and callable(transition._duration.reset):
+            transition._duration.reset()
+        elif hasattr(transition._duration, 'dist') and hasattr(transition._duration.dist, 'reset'):
+            transition._duration.dist.reset()
+
+        # Sample the distributions
+        for _ in range(num_samples):
+            reward = transition.reward()
+            duration = transition.duration()
+            dist_rewards[action].append(reward)
+            dist_durations[action].append(duration)
+
+    return {
+        "dist_rewards": dict(dist_rewards),
+        "dist_durations": dict(dist_durations),
+    }
+
+
+def train_agent_with_tracking(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 10000) -> Dict[str, Any]:
+    """Train agent while tracking rewards and durations per action."""
+    episode_returns: List[float] = []
+    episode_times: List[float] = []
+    rhos = []
+
+    # Track rewards and durations per action
+    action_rewards: Dict[int, List[float]] = defaultdict(list)
+    action_durations: Dict[int, List[float]] = defaultdict(list)
+    all_rewards: List[float] = []
+    all_durations: List[float] = []
+    action_sequence: List[int] = []
+
+    # Track distribution samples independently (sample both actions at every step)
+    dist_samples_rewards: Dict[int, List[float]] = defaultdict(list)
+    dist_samples_durations: Dict[int, List[float]] = defaultdict(list)
+
+    for episode_idx in range(num_episodes):
+        state = env.reset(seed=episode_idx)
+        total_reward = 0.0
+        total_time = 0.0
+        steps = 0
+        while steps < max_steps_per_episode:
+            action = agent.act(state)
+            next_state, reward, duration, done, _ = env.step(action)
+            agent.learn(state, action, reward, next_state, duration)
+
+            # Track per-action data (what actually happened)
+            action_rewards[action].append(reward)
+            action_durations[action].append(duration)
+            all_rewards.append(reward)
+            all_durations.append(duration)
+            action_sequence.append(action)
+
+            # Track convergence
+            if agent.policy_changed:
+                agent.last_policy_changed_at = episode_idx
+
+            total_reward += reward
+            total_time += duration
+            state = next_state
+            steps += 1
+
+            if done:
+                break
+        episode_returns.append(total_reward)
+        episode_times.append(total_time)
+        rhos.append(agent.rho)
+
+    return {
+        "episode_returns": episode_returns,
+        "total_return": sum(episode_returns),
+        "total_time": sum(episode_times),
+        "converged_at": agent.last_policy_changed_at,
+        "rho": agent.rho,
+        # Distribution tracking data
+        "action_rewards": dict(action_rewards),
+        "action_durations": dict(action_durations),
+        "all_rewards": all_rewards,
+        "all_durations": all_durations,
+        "action_sequence": action_sequence,
+    }
+
+
+def main():
+    smdp_factory = SMDPConfigFactory()
+
+    all_results = defaultdict(dict)
+    distribution_data = {}  # Store distribution data per config
+
+    for cfg_name, cfg in smdp_factory.get_all_configs().items():
+        env = SMDPEnvironment(cfg)
+
+        action_space = env.action_space
+        er = 0.3
+        no_update_on_explore = True
+        lr = 0.2
+        beta = 0.1
+        agents = [
+            HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
+                            exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+            HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr,
+                            exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+            SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr,
+                            exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+            SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                         rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+        ]
+
+        results = {}
+
+        num_episodes = 10
+        max_steps_per_episode = 1000
+
+        for idx, agent in enumerate(agents):
+            res = train_agent_with_tracking(env, agent, num_episodes=num_episodes, max_steps_per_episode=max_steps_per_episode)
+            avg_rate = res["total_return"] / res["total_time"] if res["total_time"] != 0 else 0.0
+            results[agent.name] = {
+                **res,
+                "policy": get_greedy_policy(agent, env.states, action_space),
+                "avg_rate": avg_rate,
+            }
+
+        # Sample distributions directly (independent of agent behavior) for visualization
+        # Use max_steps_per_episode since distributions reset each episode
+        distribution_data[cfg_name] = sample_distributions_directly(cfg, num_samples=max_steps_per_episode * 100)
+
+        for agent_name, res in results.items():
+            # Store numeric version for plotting
+            all_results[cfg_name][agent_name] = {
+                "total_return": float(res["total_return"]),
+                "total_time": float(res["total_time"]),
+                "avg_rate": float(res["avg_rate"]),
+                "rho": float(res["rho"]) if res["rho"] is not None else None,
+                "converged_at": int(res["converged_at"]) if res["converged_at"] is not None else None,
+                "episode_returns": res["episode_returns"],  # Store learning trajectory
+                "policy": res["policy"]
+            }
+
+    visualize(all_results, smdp_factory.notes)
+    visualize_distributions(distribution_data, smdp_factory.notes, "_long")
+
+    visualize_distributions(distribution_data, smdp_factory.notes, "_short", max_steps_per_episode)
+
+
+def visualize_distributions(distribution_data: dict, notes: dict, s=None, d =None):
+    """Create tmp.py-style plots showing reward/duration distributions per action."""
+    os.makedirs(f"plots/distributions{s}", exist_ok=True)
+
+    for env_name, data in distribution_data.items():
+        if data is None:
+            continue
+
+        env_slug = _slugify(env_name)
+        note = notes.get(env_name, "")
+
+        # Use directly sampled distribution data
+        dist_rewards = data["dist_rewards"]
+        dist_durations = data["dist_durations"]
+
+        # Get rewards and durations for each action
+        rewards_a = np.array(dist_rewards.get(0, []))[:d]
+        rewards_b = np.array(dist_rewards.get(1, []))[:d]
+        durations_a = np.array(dist_durations.get(0, []))[:d]
+        durations_b = np.array(dist_durations.get(1, []))[:d]
+
+        # Create step arrays (1-indexed to match run steps)
+        steps_a = np.arange(1, len(rewards_a) + 1)[:d]
+        steps_b = np.arange(1, len(rewards_b) + 1)[:d]
+
+        fig, axes = plt.subplots(3, 1, figsize=(14, 16))
+
+        # First subplot: Rewards over time (like sin/cos in tmp.py)
+        ax1 = axes[0]
+        if len(rewards_a) > 0:
+            ax1.plot(steps_a, rewards_a, label="Action A Rewards", color="blue", alpha=0.8)
+        if len(rewards_b) > 0:
+            ax1.plot(steps_b, rewards_b, label="Action B Rewards", color="orange", alpha=0.8)
+        ax1.set_yscale("symlog")
+        ax1.set_xlabel("Step (within episode)")
+        ax1.set_ylabel("Reward")
+        ax1.set_title(f"{env_name} – Rewards Over Time (per episode)")
+        ax1.legend()
+        ax1.grid(True, alpha=0.3)
+
+        # Second subplot: Durations over time
+        ax2 = axes[1]
+        if len(durations_a) > 0:
+            ax2.plot(steps_a, durations_a, label="Action A Durations", color="blue", alpha=0.8)
+        if len(durations_b) > 0:
+            ax2.plot(steps_b, durations_b, label="Action B Durations", color="orange", alpha=0.8)
+        ax2.set_yscale("symlog")
+        ax2.set_xlabel("Step (within episode)")
+        ax2.set_ylabel("Duration")
+        ax2.set_title(f"{env_name} – Durations Over Time (per episode)")
+        ax2.legend()
+        ax2.grid(True, alpha=0.3)
+
+        # Compute reward/duration ratio per action
+        ratio_a = None
+        ratio_b = None
+        if len(rewards_a) > 0 and len(durations_a) > 0:
+            ratio_a = np.divide(rewards_a, durations_a, out=np.zeros_like(rewards_a, dtype=float),
+                               where=durations_a != 0)
+        if len(rewards_b) > 0 and len(durations_b) > 0:
+            ratio_b = np.divide(rewards_b, durations_b, out=np.zeros_like(rewards_b, dtype=float),
+                               where=durations_b != 0)
+
+        # Third subplot: Reward/Duration ratio (without cumsum)
+        ax3 = axes[2]
+        if ratio_a is not None:
+            ax3.plot(steps_a, ratio_a, label="reward_A / duration_A", color="blue", alpha=0.8)
+        if ratio_b is not None:
+            ax3.plot(steps_b, ratio_b, label="reward_B / duration_B", color="orange", alpha=0.8)
+        ax3.set_yscale("symlog")
+        ax3.set_xlabel("Step (within episode)")
+        ax3.set_ylabel("Reward / Duration")
+        ax3.set_title(f"{env_name} – Reward/Duration Ratio (per episode)")
+        ax3.legend()
+        ax3.grid(True, alpha=0.3)
+
+        # Fourth subplot: Cumulative reward/duration ratio
+        # ax4 = axes[3]
+        # if ratio_a is not None:
+        #     cumsum_ratio_a = np.cumsum(ratio_a)
+        #     ax4.plot(steps_a, cumsum_ratio_a, label="cumsum(reward_A / duration_A)", color="blue", alpha=0.8)
+        # if ratio_b is not None:
+        #     cumsum_ratio_b = np.cumsum(ratio_b)
+        #     ax4.plot(steps_b, cumsum_ratio_b, label="cumsum(reward_B / duration_B)", color="orange", alpha=0.8)
+        #
+        # ax4.set_xlabel("Step (within episode)")
+        # ax4.set_ylabel("Cumulative Sum")
+        # ax4.set_title(f"{env_name} – Cumulative Reward/Duration Ratio (per episode)")
+        # ax4.legend()
+        # ax4.grid(True, alpha=0.3)
+        ax3.legend()
+        ax3.grid(True, alpha=0.3)
+
+        # Add note as caption
+        if note:
+            plt.figtext(0.5, 0.01, note, wrap=True, horizontalalignment='center', fontsize=10)
+            fig.subplots_adjust(bottom=0.1)
+
+        plt.tight_layout()
+        plt.savefig(os.path.join("plots", f"distributions{s}", f"{env_slug}_distributions.png"), dpi=150)
+        plt.close()
+
+
+def visualize(all_results: defaultdict[Any, dict], notes: dict):
+    # Ensure output directories exist
+    os.makedirs("plots/comparison", exist_ok=True)
+    os.makedirs("plots/learning_curves", exist_ok=True)
+
+    # Consistent colors per agent name
+    agent_colors = {
+        "Weighted Harmonic": "tab:blue",
+        "Relaxed SMART": "tab:orange",
+        "SMART": "tab:green",
+    }
+
+    # Visualize results per environment with dual-axis plots
+    for env_name, agents_metrics in all_results.items():
+        if not agents_metrics:
+            continue
+
+        env_slug = _slugify(env_name)
+        note = notes.get(env_name, "")
+
+        # add the policy chosen to the agent name as agent_name + f"(policy)"
+        for agent_name in list(agents_metrics.keys()):
+            policy = agents_metrics[agent_name]["policy"]
+            policy_str = ",".join(f"{s}:{'a' if a == 0 else 'b' if a == 1 else '-'}" for s, a in policy.items())
+            new_agent_name = f"{agent_name} ({policy_str})"
+            agents_metrics[new_agent_name] = agents_metrics.pop(agent_name)
+        agent_names = list(agents_metrics.keys())
+
+        # Create metrics comparison plot with convergence data
+        left_metrics = ["total_return", "total_time"]
+        right_metrics = ["avg_rate", "rho"]
+        convergence_metrics = ["converged_at"]
+
+        x_left = np.arange(len(left_metrics))
+        x_right = np.arange(len(right_metrics))
+        x_conv = np.arange(len(convergence_metrics))
+        width = 0.8 / max(len(agent_names), 1)
+
+        fig, ax1 = plt.subplots(1, 1, figsize=(15, 8))
+        ax2 = ax1.twinx()
+
+        # Plot left axis metrics (total_return, total_time)
+        for idx, agent_name in enumerate(agent_names):
+            vals_left = []
+            for m in left_metrics:
+                v = agents_metrics[agent_name][m]
+                vals_left.append(v)
+            offset = (idx - (len(agent_names) - 1) / 2) * width
+            ax1.bar(x_left + offset, vals_left, width, label=agent_name,
+                    color=agent_colors.get(agent_name, None), alpha=0.7)
+
+        # Plot right axis metrics (avg_rate, rho)
+        for idx, agent_name in enumerate(agent_names):
+            vals_right = []
+            for m in right_metrics:
+                v = agents_metrics[agent_name][m]
+                if v is None:
+                    v = 0.0
+                vals_right.append(v)
+            offset = (idx - (len(agent_names) - 1) / 2) * width
+            ax2.bar(x_right + 2.5 + offset, vals_right, width,
+                    color=agent_colors.get(agent_name, None), alpha=0.7)
+
+        # Set up left axis
+        ax1.set_xticks(list(x_left) + [x + 2.5 for x in x_right])
+        ax1.set_xticklabels(left_metrics + right_metrics)
+        ax1.set_ylabel("Total Return / Total Time", color='black')
+        ax1.tick_params(axis='y', labelcolor='black')
+        ax1.grid(axis="y", linestyle="--", alpha=0.4)
+
+        # Set up right axis
+        ax2.set_ylabel("Avg Rate / Rho", color='black')
+        ax2.tick_params(axis='y', labelcolor='black')
+
+        ax1.set_title(f"{env_name} – Performance Metrics")
+        ax1.legend(loc='upper left')
+
+        # add note as a caption
+        if note:
+            plt.figtext(0.5, 0.05, note, wrap=True, horizontalalignment='center', fontsize=12)
+            # Add some margin at the bottom so caption is not cut off
+            fig.subplots_adjust(bottom=0.15)
+
+        plt.savefig(os.path.join("plots", "comparison", f"{env_slug}_metrics_comparison.png"), dpi=150)
+        plt.close()
+
+        # Create learning curves plot to show convergence trajectories
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        for agent_name in agent_names:
+            episode_returns = agents_metrics[agent_name]["episode_returns"]
+            episodes = range(1, len(episode_returns) + 1)
+
+            # Plot learning curve
+            ax.plot(episodes, episode_returns, label=f"{agent_name} Returns",
+                    color=agent_colors.get(agent_name, None), alpha=0.8, linewidth=2)
+
+            # Add convergence marker
+            conv_episode = agents_metrics[agent_name]["converged_at"]
+            if conv_episode is not None and conv_episode < len(episode_returns):
+                ax.axvline(x=conv_episode, color=agent_colors.get(agent_name, None),
+                           linestyle='--', alpha=0.6, linewidth=1)
+                ax.annotate(f'{agent_name}\nConverged',
+                            xy=(conv_episode, episode_returns[conv_episode - 1]),
+                            xytext=(conv_episode + 5, episode_returns[conv_episode - 1]),
+                            arrowprops=dict(arrowstyle='->', color=agent_colors.get(agent_name, None), alpha=0.6),
+                            fontsize=8, alpha=0.8)
+
+        ax.set_xlabel("Episode")
+        ax.set_ylabel("Episode Return")
+        ax.set_title(f"{env_name} – Learning Curves and Convergence")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join("plots", "learning_curves", f"{env_slug}_learning_curves.png"), dpi=150)
+        plt.close()
+
+
+if __name__ == "__main__":
+    main()

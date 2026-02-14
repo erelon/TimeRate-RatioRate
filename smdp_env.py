@@ -722,3 +722,37 @@ def non_stationary_simple_unichain() -> SMDPConfig:
         terminal_states=[],  # continuing task; episodes cut off in runner
     )
     return cfg
+
+def counterexample_ratio_vs_expected_rate(
+    p: float = 0.01,
+    r_hi: float = 100.0,
+    t_hi: float = 1.0,
+    r_lo: float = 1.0,
+    t_lo: float = 1000.0,
+    r_b: float = 1.0,
+    t_b: float = 1.0,
+):
+    A, B = 0, 1
+    s0 = "s0"
+    states = [s0]
+
+    transitions = {}
+
+    # Action A: two outcomes, both go back to s0
+    transitions[(s0, A)] = [
+        Transition(next_state=s0, prob=p,    reward=r_hi, duration=t_hi),
+        Transition(next_state=s0, prob=1-p,  reward=r_lo, duration=t_lo),
+    ]
+
+    # Action B: deterministic, go back to s0
+    transitions[(s0, B)] = [
+        Transition(next_state=s0, prob=1.0, reward=r_b, duration=t_b),
+    ]
+
+    return SMDPConfig(
+        states=states,
+        actions=[A, B],
+        transitions=transitions,
+        start_state=s0,
+        terminal_states=[]
+    )

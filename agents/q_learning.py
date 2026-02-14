@@ -2,7 +2,7 @@ import math
 from .base import Agent, MAX_REWARDS
 
 class ContinuousQLearningAgent(Agent):
-    def __init__(self, name: str, action_space=None, learning_rate=0.1, discount_factor=0.99, exploration_rate=0.1, _lambda=0.01, **kwargs):
+    def __init__(self, name: str, action_space=None, learning_rate=0.1, discount_factor=0.9, exploration_rate=0.1, _lambda=0.01, **kwargs):
         super().__init__(name, action_space, **kwargs)
         self._lambda = _lambda
         self.learning_rate = learning_rate
