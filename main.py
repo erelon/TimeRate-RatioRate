@@ -187,6 +187,7 @@ def main():
             }
 
     visualize(all_results, smdp_factory.notes)
+    visualize_q_table_histories(agents, cfg_name)
     visualize_distributions(distribution_data, smdp_factory.notes, "_long")
 
     visualize_distributions(distribution_data, smdp_factory.notes, "_short", max_steps_per_episode)
@@ -410,6 +411,28 @@ def visualize(all_results: defaultdict[Any, dict], notes: dict):
         ax.legend()
         plt.tight_layout()
         plt.savefig(os.path.join("plots", "learning_curves", f"{env_slug}_learning_curves.png"), dpi=150)
+        plt.close()
+
+
+def visualize_q_table_histories(agents: list, env_name: str, outdir: str = "plots/q_table_histories"):
+    """Plot and save Q-table histories for each agent in a dedicated directory."""
+    os.makedirs(outdir, exist_ok=True)
+    env_slug = _slugify(env_name)
+    for agent in agents:
+        # Only plot if agent has q_table_past_a and q_table_past_b attributes
+        if not hasattr(agent, 'q_table_past_a') or not hasattr(agent, 'q_table_past_b'):
+            continue
+        plt.figure(figsize=(10, 6))
+        plt.plot(agent.q_table_past_a, label="Q-table Action A", color="blue", alpha=0.8, linewidth=2)
+        plt.plot(agent.q_table_past_b, label="Q-table Action B", color="orange", alpha=0.8, linewidth=2)
+        plt.xlabel("Update Step")
+        plt.ylabel("Q-value")
+        plt.title(f"{env_name} – {getattr(agent, 'name', 'agent')} Q-table History")
+        plt.grid(True, alpha=0.3)
+        plt.legend()
+        plt.tight_layout()
+        agent_slug = _slugify(getattr(agent, 'name', str(id(agent))))
+        plt.savefig(os.path.join(outdir, f"{env_slug}_{agent_slug}_q_history.png"), dpi=150)
         plt.close()
 
 

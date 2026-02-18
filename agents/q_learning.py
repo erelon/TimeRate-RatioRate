@@ -11,6 +11,8 @@ class ContinuousQLearningAgent(Agent):
         self.q_table = {}
         self.policy_changed = False
         self.rho = 0
+        self.q_table_past_a= []
+        self.q_table_past_b= []
 
     def reset(self):
         self.q_table = {}
@@ -30,7 +32,7 @@ class ContinuousQLearningAgent(Agent):
         if self.rng.random() < self.exploration_rate:
             available_actions = list(self.q_table[state].keys())
             return self.rng.choice(available_actions)
-        return self.eval(state) 
+        return self.eval(state)
 
     def set_target(self, reward, time, next_q):
         # df = math.exp(-self._lambda * time * self.discount_factor)   # Gemini says this is to be used if discount is given as RATE, rather than factor. 
@@ -41,6 +43,8 @@ class ContinuousQLearningAgent(Agent):
 
     def update_table(self, state, action, reward, time,td_target, td_error, onpolicy):
         self.q_table[state][action] += self.learning_rate * td_error
+        self.q_table_past_a.append(self.q_table["s1"][0])
+        self.q_table_past_b.append(self.q_table["s1"][1])
 
     def learn(self, state, action, reward, next_state, time):
         self.initialize_table(next_state)
