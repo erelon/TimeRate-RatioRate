@@ -219,18 +219,18 @@ class SMDPConfigFactory:
         # Trigonometric with log scaling (inspired by tmp.py)
         # -------------------------
         # sin * log and cos * log environments
-        for log_scale in [0.0001, 0.0005, 0.001]:
-            for frequency in [0.1, 0.5, 1.0]:
+        for log_scale in [0.001,]:# 0.0005, 0.001]:
+            for frequency in [1,]:# 0.5, 1.0]:
                 # Reward: sin with exponential growth, Duration: cos with exponential growth
-                reward1 = make_reward("sin_log", amplitude=10.0, frequency=frequency, offset=15.0,
+                reward1 = make_reward("sin_log", amplitude=1.0, frequency=frequency, offset=15.0,
                                       log_base=10.0, start_exp=0.0, log_scale=log_scale)
                 # Reward2: linear slope (like linear_line/8 in tmp.py)
                 reward2 = make_reward("linear", start=0.0, step=1/20)
 
-                duration1 = make_duration("cos_log", amplitude=5.0, frequency=frequency * 0.5, offset=10.0,
+                duration1 = make_duration("cos_log", amplitude=1.0, frequency=frequency, offset=10.0,
                                           log_base=10.0, start_exp=0.0, log_scale=log_scale * 0.5)
                 # Duration2: constant 1
-                duration2 = make_duration("normal", mean=1.0, stddev=0.0)
+                duration2 = make_duration("normal", mean=1.0, stddev=0.1)
 
                 reward1.register_hook(reward2)
                 reward2.register_hook(reward1)

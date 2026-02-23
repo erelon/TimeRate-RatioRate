@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Parameters matching the real distribution code
-t = 100000
+t = 1000
 log_base = 10.0
 start_exp = 0.0
 log_scale = 0.001  # same as in more_smdp_envs.py
@@ -10,13 +10,13 @@ log_scale = 0.001  # same as in more_smdp_envs.py
 # Step-based scaling (like the real SinLogDist/CosLogDist)
 steps = np.arange(1, t + 1)
 log_multiplier1 = log_base ** (start_exp + steps * log_scale)
-log_multiplier2 = log_base ** (start_exp + steps * log_scale/2)
+log_multiplier2 = log_base ** (start_exp + steps * log_scale / 4)
 
-cos_line = (np.cos(steps) +2) * log_multiplier1
-sin_line = (np.sin(steps) +1)* log_multiplier2
+cos_line = (np.cos(steps) + 2) * log_multiplier2
+sin_line = (np.sin(steps) + 15) * log_multiplier1
 
 # Avoid division by zero
-division = np.divide(cos_line, sin_line)#, out=np.zeros_like(cos_line), where=sin_line != 0)
+division = np.divide(cos_line, sin_line)  # , out=np.zeros_like(cos_line), where=sin_line != 0)
 
 plt.figure(figsize=(12, 8))
 
