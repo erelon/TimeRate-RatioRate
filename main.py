@@ -172,7 +172,7 @@ def main():
 
         # Sample distributions directly (independent of agent behavior) for visualization
         # Use max_steps_per_episode since distributions reset each episode
-        distribution_data[cfg_name] = sample_distributions_directly(cfg, num_samples=max_steps_per_episode * 100)
+        distribution_data[cfg_name] = sample_distributions_directly(cfg, num_samples=max_steps_per_episode * 10)
 
         for agent_name, res in results.items():
             # Store numeric version for plotting
@@ -188,12 +188,12 @@ def main():
 
     visualize(all_results, smdp_factory.notes)
     visualize_q_table_histories(agents, cfg_name)
-    visualize_distributions(distribution_data, smdp_factory.notes, "_long")
+    visualize_distributions(distribution_data, {}, "_long")
 
     visualize_distributions(distribution_data, smdp_factory.notes, "_short", max_steps_per_episode)
 
 
-def visualize_distributions(distribution_data: dict, notes: dict, s=None, d =None):
+def visualize_distributions(distribution_data: dict, notes: dict, s=None, d=None):
     """Create tmp.py-style plots showing reward/duration distributions per action."""
     os.makedirs(f"plots/distributions{s}", exist_ok=True)
 
@@ -204,24 +204,26 @@ def visualize_distributions(distribution_data: dict, notes: dict, s=None, d =Non
         env_slug = _slugify(env_name)
         note = notes.get(env_name, "")
 
-        # Use directly sampled distribution data
         dist_rewards = data["dist_rewards"]
         dist_durations = data["dist_durations"]
 
-        # Get rewards and durations for each action
         rewards_a = np.array(dist_rewards.get(0, []))[:d]
         rewards_b = np.array(dist_rewards.get(1, []))[:d]
         durations_a = np.array(dist_durations.get(0, []))[:d]
         durations_b = np.array(dist_durations.get(1, []))[:d]
 
-        # Create step arrays (1-indexed to match run steps)
-        steps_a = np.arange(1, len(rewards_a) + 1)[:d]
-        steps_b = np.arange(1, len(rewards_b) + 1)[:d]
+        steps_a = np.arange(1, len(rewards_a) + 1)
+        steps_b = np.arange(1, len(rewards_b) + 1)
 
-        fig, axes = plt.subplots(3, 1, figsize=(14, 16))
+        def _add_note(fig):
+            if note:
+                plt.figtext(0.5, 0.01, note, wrap=True, horizontalalignment='center', fontsize=10)
+                fig.subplots_adjust(bottom=0.1)
 
-        # First subplot: Rewards over time (like sin/cos in tmp.py)
-        ax1 = axes[0]
+        outdir = os.path.join("plots", f"distributions{s}")
+
+        # --- Figure 1: Rewards over time ---
+        fig1, ax1 = plt.subplots(figsize=(14, 5))
         if len(rewards_a) > 0:
             ax1.plot(steps_a, rewards_a, label="Action A Rewards", color="blue", alpha=0.8)
         if len(rewards_b) > 0:
@@ -229,12 +231,16 @@ def visualize_distributions(distribution_data: dict, notes: dict, s=None, d =Non
         ax1.set_yscale("symlog")
         ax1.set_xlabel("Step (within episode)")
         ax1.set_ylabel("Reward")
-        ax1.set_title(f"{env_name} – Rewards Over Time (per episode)")
+        ax1.set_title(f"Rewards Over Time (per episode)")
         ax1.legend()
         ax1.grid(True, alpha=0.3)
+        _add_note(fig1)
+        plt.tight_layout()
+        plt.savefig(os.path.join(outdir, f"{env_slug}_rewards.png"), dpi=150)
+        plt.close()
 
-        # Second subplot: Durations over time
-        ax2 = axes[1]
+        # --- Figure 2: Durations over time ---
+        fig2, ax2 = plt.subplots(figsize=(14, 5))
         if len(durations_a) > 0:
             ax2.plot(steps_a, durations_a, label="Action A Durations", color="blue", alpha=0.8)
         if len(durations_b) > 0:
@@ -242,57 +248,38 @@ def visualize_distributions(distribution_data: dict, notes: dict, s=None, d =Non
         ax2.set_yscale("symlog")
         ax2.set_xlabel("Step (within episode)")
         ax2.set_ylabel("Duration")
-        ax2.set_title(f"{env_name} – Durations Over Time (per episode)")
+        ax2.set_title(f"Durations Over Time (per episode)")
         ax2.legend()
         ax2.grid(True, alpha=0.3)
+        _add_note(fig2)
+        plt.tight_layout()
+        plt.savefig(os.path.join(outdir, f"{env_slug}_durations.png"), dpi=150)
+        plt.close()
 
-        # Compute reward/duration ratio per action
+        # --- Figure 3: Reward/Duration ratio ---
         ratio_a = None
         ratio_b = None
         if len(rewards_a) > 0 and len(durations_a) > 0:
             ratio_a = np.divide(rewards_a, durations_a, out=np.zeros_like(rewards_a, dtype=float),
-                               where=durations_a != 0)
+                                where=durations_a != 0)
         if len(rewards_b) > 0 and len(durations_b) > 0:
             ratio_b = np.divide(rewards_b, durations_b, out=np.zeros_like(rewards_b, dtype=float),
-                               where=durations_b != 0)
+                                where=durations_b != 0)
 
-        # Third subplot: Reward/Duration ratio (without cumsum)
-        ax3 = axes[2]
+        fig3, ax3 = plt.subplots(figsize=(14, 5))
         if ratio_a is not None:
-            ax3.plot(steps_a, ratio_a, label="reward_A / duration_A", color="blue", alpha=0.8)
+            ax3.plot(steps_a, ratio_a, label="reward_A / duration_A", color="red", alpha=0.8)
         if ratio_b is not None:
-            ax3.plot(steps_b, ratio_b, label="reward_B / duration_B", color="orange", alpha=0.8)
+            ax3.plot(steps_b, ratio_b, label="reward_B / duration_B", color="green", alpha=0.8)
         ax3.set_yscale("symlog")
         ax3.set_xlabel("Step (within episode)")
         ax3.set_ylabel("Reward / Duration")
-        ax3.set_title(f"{env_name} – Reward/Duration Ratio (per episode)")
+        ax3.set_title(f"Reward/Duration Ratio (per episode)")
         ax3.legend()
         ax3.grid(True, alpha=0.3)
-
-        # Fourth subplot: Cumulative reward/duration ratio
-        # ax4 = axes[3]
-        # if ratio_a is not None:
-        #     cumsum_ratio_a = np.cumsum(ratio_a)
-        #     ax4.plot(steps_a, cumsum_ratio_a, label="cumsum(reward_A / duration_A)", color="blue", alpha=0.8)
-        # if ratio_b is not None:
-        #     cumsum_ratio_b = np.cumsum(ratio_b)
-        #     ax4.plot(steps_b, cumsum_ratio_b, label="cumsum(reward_B / duration_B)", color="orange", alpha=0.8)
-        #
-        # ax4.set_xlabel("Step (within episode)")
-        # ax4.set_ylabel("Cumulative Sum")
-        # ax4.set_title(f"{env_name} – Cumulative Reward/Duration Ratio (per episode)")
-        # ax4.legend()
-        # ax4.grid(True, alpha=0.3)
-        ax3.legend()
-        ax3.grid(True, alpha=0.3)
-
-        # Add note as caption
-        if note:
-            plt.figtext(0.5, 0.01, note, wrap=True, horizontalalignment='center', fontsize=10)
-            fig.subplots_adjust(bottom=0.1)
-
+        _add_note(fig3)
         plt.tight_layout()
-        plt.savefig(os.path.join("plots", f"distributions{s}", f"{env_slug}_distributions.png"), dpi=150)
+        plt.savefig(os.path.join(outdir, f"{env_slug}_ratio.png"), dpi=150)
         plt.close()
 
 
