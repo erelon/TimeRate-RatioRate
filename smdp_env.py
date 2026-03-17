@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from symtable import Function
 from typing import Any, Dict, List, Tuple, Hashable, Optional
-from non-stationary import *
+# from non_stationary import *
 import random
 
 State = Hashable
@@ -141,6 +141,64 @@ class SMDPEnvironment:
         return self.state, reward, duration, done, info
 
 
+def five_state_smdp_config() -> SMDPConfig:
+    """
+    5-state SMDP configuration.
+    - s1: a1 -> s4, a2 -> s2
+    - s4: a1 -> s5
+    - s5: a1 -> s3
+    - s3: a1 -> s3
+    - s2: a1 -> s3
+    All rewards and durations are 1.
+    """
+    s1, s2, s3, s4, s5 = "s1", "s2", "s3", "s4", "s5"
+    states = [s1, s2, s3, s4, s5]
+
+    A1, A2 = 0, 1  # 0: a1, 1: a2
+    actions = [A1, A2]
+
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+
+    # s1 actions
+    transitions[(s1, A1)] = [
+        Transition(next_state=s4, prob=1.0, reward=6.0, duration=2.0),
+    ]
+    transitions[(s1, A2)] = [
+        Transition(next_state=s2, prob=1.0, reward=6.0, duration=2.0),
+    ]
+
+    # s2 actions
+    transitions[(s2, A1)] = [
+        Transition(next_state=s3, prob=1.0, reward=6.0, duration=2.0),
+    ]
+
+    # s3 actions
+    transitions[(s3, A1)] = [
+        Transition(next_state=s3, prob=1.0, reward=0.0, duration=1.0),
+    ]
+
+    # s4 actions
+    transitions[(s4, A1)] = [
+        Transition(next_state=s5, prob=1.0, reward=6.0, duration=2.0),
+    ]
+
+    # s5 actions
+    transitions[(s5, A1)] = [
+        Transition(next_state=s3, prob=1.0, reward=6.0, duration=2.0),
+    ]
+
+    cfg = SMDPConfig(
+        states=states,
+        actions=actions,
+        transitions=transitions,
+        start_state=s1,
+        terminal_states=[],
+    )
+    return cfg
+
+
+
+
 def bonus_unichain_smdp_config() -> SMDPConfig:
     """
     from s1 can take several actions.
@@ -165,9 +223,9 @@ def bonus_unichain_smdp_config() -> SMDPConfig:
     ]
 
     # s1, action b
-    transitions[(s1, B)] = [
-        Transition(next_state=s2, prob=1, reward=100.0, duration=1.0),
-    ]
+    # transitions[(s1, B)] = [
+    #     Transition(next_state=s2, prob=1, reward=100.0, duration=1.0),
+    # ]
 
     # s2, action a
     transitions[(s2, A)] = [
@@ -184,10 +242,10 @@ def bonus_unichain_smdp_config() -> SMDPConfig:
     return cfg
 
 
-def hellorheaven_unichain_smdp_config() -> SMDPConfig:
+def hellorheaven_multichain_smdp_config() -> SMDPConfig:
     """
     from s1 can take several actions.
-    action a leads to s2 with p = 1.0, tau = 1, r=0
+    action a leads to s2 with p = 1.0, tau = 1, r=1
     action b leads to s3 with p = 1.0, tau = 1, r=100
 
     from s2: 
@@ -207,7 +265,7 @@ def hellorheaven_unichain_smdp_config() -> SMDPConfig:
 
     # s1, action a
     transitions[(s1, A)] = [
-        Transition(next_state=s2, prob=1, reward=0.0, duration=1.0),
+        Transition(next_state=s2, prob=1, reward=1.0, duration=1.0),
     ]
 
     # s1, action b
@@ -634,21 +692,61 @@ def loopy_three_state_smdp_config() -> SMDPConfig:
     return cfg
 
 
-def schwartz_first_loop_smdp_config() -> SMDPConfig:
+def schwartz_first_loop_smdp_config(loop_for=49) -> SMDPConfig:
     """Return the SMDPConfig that matches the Schwartz first loop example.
 
     States: s1, s2
     Actions: 0 -> action a, 1 -> action b
 
+    loop of "loop_for" states. In each, action a moves to the next with reward 0, action b stays with reward 0.
+    Last state loops back to the first state, with reward 50 (for action a), and 0 (for action b, staying in place).
+    """
+
+    A, B = 0, 1
+
+    transitions: Dict[Tuple[State, Action], List[Transition]] = {}
+    states = ["s0"]
+
+    for l in range(loop_for):
+        states.append(f"s{l + 1}")
+        transitions[(f"s{l}", A)] = [
+            Transition(next_state=f"s{l + 1}", prob=1.0, reward=0, duration=1.0),
+        ]
+        transitions[(f"s{l}", B)] = [
+            Transition(next_state=f"s{l}", prob=1.0, reward=0, duration=1.0),
+        ]
+
+    transitions[(f"s{l + 1}", A)] = [
+        Transition(next_state="s0", prob=1.0, reward=50.0, duration=1.0),
+    ]
+    transitions[(f"s{l + 1}", B)] = [
+        Transition(next_state=f"s{l + 1}", prob=1.0, reward=0, duration=1.0),
+    ]
+
+    cfg = SMDPConfig(
+        states=states,
+        actions=[A, B],
+        transitions=transitions,
+        start_state=states[0],
+        terminal_states=[],  # continuing task; episodes cut off in runner
+    )
+    return cfg
+
+
+def schwartz_first_loop_smdp_config_modified(loop_for=49) -> SMDPConfig:
+    """Return the SMDPConfig that matches the Schwartz first loop example, but with changes
+
+    States: s1, s2
+    Actions: 0 -> action a, 1 -> action b
+
     - At s1:
-        * action a leads to s2 with p=1.0, tau=1, r=0
+        * action a leads to s2 with p=1.0, tau=1, r=5
     - At s2:
         * action a leads to s1 with p=1.0, tau=2, r=10
 
     """
 
     A, B = 0, 1
-    loop_for = 49
 
     transitions: Dict[Tuple[State, Action], List[Transition]] = {}
     states = ["s0"]

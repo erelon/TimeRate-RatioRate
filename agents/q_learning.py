@@ -40,7 +40,10 @@ class ContinuousQLearningAgent(Agent):
         return reward + df * self.q_table[next_state][next_action]
 
     def update_table(self, state, action, reward, time,td_target, td_error, onpolicy):
-        self.q_table[state][action] += self.learning_rate * td_error
+        update = self.learning_rate * td_error
+        
+        self._check_convergence(state, action, update)
+        self.q_table[state][action] += update
 
     def learn(self, state, action, reward, next_state, time):
         self.initialize_table(next_state)
@@ -49,7 +52,7 @@ class ContinuousQLearningAgent(Agent):
         td_target = self.set_target(reward,time, state, action, next_state, best_next_action)
         td_error = td_target - self.q_table[state][action]
 
-        self._check_convergence(state, action, self.learning_rate * td_error)
+        # self._check_convergence(state, action, self.learning_rate * td_error)
         self.update_table(state,action,reward, time,td_target,td_error,(action==best_old_action))
 
 class QLearningAgent(ContinuousQLearningAgent):
