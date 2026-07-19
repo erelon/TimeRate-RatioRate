@@ -1,4 +1,4 @@
-import sys
+
 from .r_learning import ContinuousRLAgent
 
 
@@ -20,7 +20,7 @@ class HarmonicRLAgent(ContinuousRLAgent):
         self.pos_w2 = 0
         self.zero_w = 0
 
-    def HMA_rho(self, reward, time, weight):
+    def HMA_rho(self, reward, time, weight=1.0):
         pos = 1 if reward > 0 else 0
         neg = 1 if reward < 0 else 0
         zero = 1 if reward == 0 else 0

@@ -1,4 +1,4 @@
-from .r_learning import ContinuousRLAgent, RLAgent
+from .r_learning import ContinuousRLAgent
 
 class SMARTRLAgent(ContinuousRLAgent):
     def __init__(self, name: str, action_space=None, learning_rate=0.1, exploration_rate=0.1, with_rho_trick=True,
@@ -64,7 +64,7 @@ class SMARTEMARLAgent(SMARTRLAgent):
         # Now override whatever super() did for self.rho
         b1 = self.rho_learning_rate
         b2 = self.rho_learning_rate
-        
+
         # Option 1:  Relaxed smart (EMA r)/(EMA time)
         self.rho_time = (1 - b1) * self.rho_time + b1 * time
         self.rho_reward = (1 - b2) * self.rho_reward + b2 * reward

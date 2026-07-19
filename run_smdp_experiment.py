@@ -1,11 +1,10 @@
-from typing import Dict, Any, List
+
 
 from agents import *
 from agents.r_learning import RLAgent
 from agents.smart_r import AdaptiveSMARTRLAgent, SMARTRLAgent, SMARTEMARLAgent
 from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
 from smdp_env import *  # SMDPEnvironment, * # default_three_state_smdp_config
-import numpy as np
 
 
 def train_agent(env: SMDPEnvironment, agent, num_episodes: int = 100, max_steps_per_episode: int = 10000) -> Dict[

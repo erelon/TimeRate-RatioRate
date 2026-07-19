@@ -1,4 +1,4 @@
-import math
+
 from .base import Agent, MAX_REWARDS
 
 class ContinuousQLearningAgent(Agent):

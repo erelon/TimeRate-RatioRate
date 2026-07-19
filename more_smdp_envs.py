@@ -2,6 +2,8 @@ from itertools import product, permutations
 from typing import Dict, Tuple, List
 from random import Random
 
+import numpy as np
+
 from dist_factory import make_reward, make_duration
 from smdp_env import SMDPConfig, Action, State, Transition
 
@@ -212,20 +214,20 @@ class SMDPConfigFactory:
         #
         #     config_name = f"MR_drift_action_global_drift_stationarity_{[stationarity_r1, stationarity_r2, stationarity_d1, stationarity_d2]}_duration_constant"
         #     self.all_configs[config_name] = non_stationary_simple_unichain2(reward1, duration1, reward2, duration2)
-            # self.notes[config_name] = (
-            #     f"{[stationarity_r1, stationarity_r2, stationarity_d1, stationarity_d2 ]}")
+        # self.notes[config_name] = (
+        #     f"{[stationarity_r1, stationarity_r2, stationarity_d1, stationarity_d2 ]}")
 
         # -------------------------
         # Trigonometric with log scaling (inspired by tmp.py)
         # -------------------------
         # sin * log and cos * log environments
-        for log_scale in [0.001,]:# 0.0005, 0.001]:
-            for frequency in [1,]:# 0.5, 1.0]:
+        for log_scale in reversed(np.round(np.logspace(-5, -1, 30), 6)):
+            for frequency in [1]:  # 0.5, 1.0]:
                 # Reward: sin with exponential growth, Duration: cos with exponential growth
-                reward1 = make_reward("sin_log", amplitude=1.0, frequency=frequency, offset=15.0,
+                reward1 = make_reward("sin_log", amplitude=1.0, frequency=frequency, offset=10.0,
                                       log_base=10.0, start_exp=0.0, log_scale=log_scale)
                 # Reward2: linear slope (like linear_line/8 in tmp.py)
-                reward2 = make_reward("linear", start=0.0, step=1/20)
+                reward2 = make_reward("linear", start=0.0, step=1 / 20)
 
                 duration1 = make_duration("cos_log", amplitude=1.0, frequency=frequency, offset=10.0,
                                           log_base=10.0, start_exp=0.0, log_scale=log_scale * 0.5)
@@ -236,7 +238,8 @@ class SMDPConfigFactory:
                 reward2.register_hook(reward1)
 
                 config_name = f"SinCosLog_freq_{frequency}_logscale_{log_scale}"
-                self.all_configs[config_name] = non_stationary_simple_unichain2(reward1, duration1, reward2, duration2)
+                # self.all_configs[config_name] = non_stationary_simple_unichain2(reward1, duration1, reward2, duration2)
+                self.all_configs[config_name] = non_stationary_simple_unichain2(reward2, duration2, reward1, duration1)
                 self.notes[config_name] = (
                     f"\nRewards: sin_log vs linear slope (step=1/8) with frequency={frequency}, log_scale={log_scale}\n"
                     f"Durations: sin_log vs constant 1\n"

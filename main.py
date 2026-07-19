@@ -1,5 +1,4 @@
 import os
-from typing import Any, List, Dict
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,7 +8,7 @@ from collections import defaultdict
 from agents.smart_r import SMARTRLAgent, SMARTEMARLAgent
 from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
 from more_smdp_envs import SMDPConfigFactory
-from run_smdp_experiment import train_agent, get_greedy_policy
+from run_smdp_experiment import  get_greedy_policy
 from smdp_env import *
 
 
@@ -141,10 +140,10 @@ def main():
         env = SMDPEnvironment(cfg)
 
         action_space = env.action_space
-        er = 0.1
+        er = 0.2
         no_update_on_explore = True
-        lr = 0.1
-        beta = 0.1
+        lr = 0.2
+        beta = 0.2
         agents = [
             HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
                             exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
@@ -217,22 +216,23 @@ def visualize_distributions(distribution_data: dict, notes: dict, s=None, d=None
 
         def _add_note(fig):
             if note:
-                plt.figtext(0.5, 0.01, note, wrap=True, horizontalalignment='center', fontsize=10)
-                fig.subplots_adjust(bottom=0.1)
+                plt.figtext(0.5, 0.01, note, wrap=True, horizontalalignment='center', fontsize=14, fontweight='bold')
+                fig.subplots_adjust(bottom=0.15)
 
         outdir = os.path.join("plots", f"distributions{s}")
 
         # --- Figure 1: Rewards over time ---
         fig1, ax1 = plt.subplots(figsize=(14, 5))
         if len(rewards_a) > 0:
-            ax1.plot(steps_a, rewards_a, label="Action A Rewards", color="blue", alpha=0.8)
+            ax1.plot(steps_a, rewards_a, label="Action A Rewards", color="blue", alpha=0.8, linewidth=3)
         if len(rewards_b) > 0:
-            ax1.plot(steps_b, rewards_b, label="Action B Rewards", color="orange", alpha=0.8)
+            ax1.plot(steps_b, rewards_b, label="Action B Rewards", color="orange", alpha=0.8, linewidth=3)
         ax1.set_yscale("symlog")
-        ax1.set_xlabel("Step (within episode)")
-        ax1.set_ylabel("Reward")
-        ax1.set_title(f"Rewards Over Time (per episode)")
-        ax1.legend()
+        ax1.set_xlabel("Step (within episode)", fontsize=20, fontweight='bold')
+        ax1.set_ylabel("Reward", fontsize=20, fontweight='bold')
+        ax1.set_title(f"Rewards Over Time (per episode)", fontsize=22, fontweight='bold')
+        ax1.legend(fontsize=16, frameon=True, shadow=True)
+        ax1.tick_params(axis='both', labelsize=16, width=2, length=6)
         ax1.grid(True, alpha=0.3)
         _add_note(fig1)
         plt.tight_layout()
@@ -242,14 +242,15 @@ def visualize_distributions(distribution_data: dict, notes: dict, s=None, d=None
         # --- Figure 2: Durations over time ---
         fig2, ax2 = plt.subplots(figsize=(14, 5))
         if len(durations_a) > 0:
-            ax2.plot(steps_a, durations_a, label="Action A Durations", color="blue", alpha=0.8)
+            ax2.plot(steps_a, durations_a, label="Action A Durations", color="blue", alpha=0.8, linewidth=3)
         if len(durations_b) > 0:
-            ax2.plot(steps_b, durations_b, label="Action B Durations", color="orange", alpha=0.8)
+            ax2.plot(steps_b, durations_b, label="Action B Durations", color="orange", alpha=0.8, linewidth=3)
         ax2.set_yscale("symlog")
-        ax2.set_xlabel("Step (within episode)")
-        ax2.set_ylabel("Duration")
-        ax2.set_title(f"Durations Over Time (per episode)")
-        ax2.legend()
+        ax2.set_xlabel("Step (within episode)", fontsize=20, fontweight='bold')
+        ax2.set_ylabel("Duration", fontsize=20, fontweight='bold')
+        ax2.set_title(f"Durations Over Time (per episode)", fontsize=22, fontweight='bold')
+        ax2.legend(fontsize=16, frameon=True, shadow=True)
+        ax2.tick_params(axis='both', labelsize=16, width=2, length=6)
         ax2.grid(True, alpha=0.3)
         _add_note(fig2)
         plt.tight_layout()
@@ -266,19 +267,27 @@ def visualize_distributions(distribution_data: dict, notes: dict, s=None, d=None
             ratio_b = np.divide(rewards_b, durations_b, out=np.zeros_like(rewards_b, dtype=float),
                                 where=durations_b != 0)
 
-        fig3, ax3 = plt.subplots(figsize=(14, 5))
+        fig3, ax3 = plt.subplots(figsize=(8, 5))
         if ratio_a is not None:
-            ax3.plot(steps_a, ratio_a, label="reward_A / duration_A", color="red", alpha=0.8)
+            ax3.plot(steps_a, ratio_a, label="reward_A / duration_A", color="green", alpha=0.8, linewidth=3)
         if ratio_b is not None:
-            ax3.plot(steps_b, ratio_b, label="reward_B / duration_B", color="green", alpha=0.8)
-        ax3.set_yscale("symlog")
-        ax3.set_xlabel("Step (within episode)")
-        ax3.set_ylabel("Reward / Duration")
-        ax3.set_title(f"Reward/Duration Ratio (per episode)")
-        ax3.legend()
+            ax3.plot(steps_b, ratio_b, label="reward_B / duration_B", color="red", alpha=0.8, linewidth=3)
+        # add a black line on x=1000 without changing the limits of the plot:
+        # this line represents the episode step limit, and shows where the distributions reset each episode
+        ax3.axvline(x=1000, color="black", linestyle="--", alpha=0.6, linewidth=2,
+                    label=f"Episode Step Limit ({1000} steps)")
+        # make sure it is not changing the y limits of the plot:
+
+        ax3.set_yscale("log")
+        ax3.set_xlabel("Step (within episode)", fontsize=20, fontweight='bold')
+        ax3.set_ylabel("Reward / Duration", fontsize=20, fontweight='bold')
+        ax3.set_title(f"Reward/Duration Ratio (per episode)", fontsize=22, fontweight='bold')
+        ax3.legend(fontsize=16, frameon=True, shadow=True)
+        ax3.tick_params(axis='both', labelsize=16, width=2, length=6)
         ax3.grid(True, alpha=0.3)
         _add_note(fig3)
         plt.tight_layout()
+
         plt.savefig(os.path.join(outdir, f"{env_slug}_ratio.png"), dpi=150)
         plt.close()
 
@@ -348,17 +357,17 @@ def visualize(all_results: defaultdict[Any, dict], notes: dict):
 
         # Set up left axis
         ax1.set_xticks(list(x_left) + [x + 2.5 for x in x_right])
-        ax1.set_xticklabels(left_metrics + right_metrics)
-        ax1.set_ylabel("Total Return / Total Time", color='black')
-        ax1.tick_params(axis='y', labelcolor='black')
+        ax1.set_xticklabels(left_metrics + right_metrics, fontsize=18, fontweight='bold')
+        ax1.set_ylabel("Total Return / Total Time", color='black', fontsize=20, fontweight='bold')
+        ax1.tick_params(axis='y', labelcolor='black', labelsize=16, width=2, length=6)
         ax1.grid(axis="y", linestyle="--", alpha=0.4)
 
         # Set up right axis
-        ax2.set_ylabel("Avg Rate / Rho", color='black')
-        ax2.tick_params(axis='y', labelcolor='black')
+        ax2.set_ylabel("Avg Rate / Rho", color='black', fontsize=20, fontweight='bold')
+        ax2.tick_params(axis='y', labelcolor='black', labelsize=16, width=2, length=6)
 
-        ax1.set_title(f"{env_name} – Performance Metrics")
-        ax1.legend(loc='upper left')
+        ax1.set_title(f"{env_name} – Performance Metrics", fontsize=22, fontweight='bold')
+        ax1.legend(loc='upper left', fontsize=16, frameon=True, shadow=True)
 
         # add note as a caption
         if note:
@@ -384,18 +393,19 @@ def visualize(all_results: defaultdict[Any, dict], notes: dict):
             conv_episode = agents_metrics[agent_name]["converged_at"]
             if conv_episode is not None and conv_episode < len(episode_returns):
                 ax.axvline(x=conv_episode, color=agent_colors.get(agent_name, None),
-                           linestyle='--', alpha=0.6, linewidth=1)
+                           linestyle='--', alpha=0.6, linewidth=2)
                 ax.annotate(f'{agent_name}\nConverged',
                             xy=(conv_episode, episode_returns[conv_episode - 1]),
                             xytext=(conv_episode + 5, episode_returns[conv_episode - 1]),
-                            arrowprops=dict(arrowstyle='->', color=agent_colors.get(agent_name, None), alpha=0.6),
-                            fontsize=8, alpha=0.8)
+                            arrowprops=dict(arrowstyle='->', color=agent_colors.get(agent_name, None), alpha=0.6, lw=2),
+                            fontsize=14, alpha=0.8, fontweight='bold')
 
-        ax.set_xlabel("Episode")
-        ax.set_ylabel("Episode Return")
-        ax.set_title(f"{env_name} – Learning Curves and Convergence")
+        ax.set_xlabel("Episode", fontsize=20, fontweight='bold')
+        ax.set_ylabel("Episode Return", fontsize=20, fontweight='bold')
+        ax.set_title(f"{env_name} – Learning Curves and Convergence", fontsize=22, fontweight='bold')
+        ax.tick_params(axis='both', labelsize=16, width=2, length=6)
         ax.grid(True, alpha=0.3)
-        ax.legend()
+        ax.legend(fontsize=16, frameon=True, shadow=True)
         plt.tight_layout()
         plt.savefig(os.path.join("plots", "learning_curves", f"{env_slug}_learning_curves.png"), dpi=150)
         plt.close()
@@ -410,13 +420,14 @@ def visualize_q_table_histories(agents: list, env_name: str, outdir: str = "plot
         if not hasattr(agent, 'q_table_past_a') or not hasattr(agent, 'q_table_past_b'):
             continue
         plt.figure(figsize=(10, 6))
-        plt.plot(agent.q_table_past_a, label="Q-table Action A", color="blue", alpha=0.8, linewidth=2)
-        plt.plot(agent.q_table_past_b, label="Q-table Action B", color="orange", alpha=0.8, linewidth=2)
-        plt.xlabel("Update Step")
-        plt.ylabel("Q-value")
-        plt.title(f"{env_name} – {getattr(agent, 'name', 'agent')} Q-table History")
+        plt.plot(agent.q_table_past_a, label="Q-table Action A", color="blue", alpha=0.8, linewidth=3)
+        plt.plot(agent.q_table_past_b, label="Q-table Action B", color="orange", alpha=0.8, linewidth=3)
+        plt.xlabel("Update Step", fontsize=20, fontweight='bold')
+        plt.ylabel("Q-value", fontsize=20, fontweight='bold')
+        plt.title(f"{env_name} – {getattr(agent, 'name', 'agent')} Q-table History", fontsize=22, fontweight='bold')
+        plt.tick_params(axis='both', labelsize=16, width=2, length=6)
         plt.grid(True, alpha=0.3)
-        plt.legend()
+        plt.legend(fontsize=16, frameon=True, shadow=True)
         plt.tight_layout()
         agent_slug = _slugify(getattr(agent, 'name', str(id(agent))))
         plt.savefig(os.path.join(outdir, f"{env_slug}_{agent_slug}_q_history.png"), dpi=150)
