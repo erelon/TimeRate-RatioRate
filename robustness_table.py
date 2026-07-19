@@ -2,7 +2,7 @@
 """
 robustness_table.py
 
-Sweeps over (exploration_rate, learning_rate, rho_learning_rate) for HarmonicROLAgent
+Sweeps over (exploration_rate, learning_rate, rho_learning_rate) for Harmonic
 and measures what fraction of parameter combinations converge to the correct policy
 (action 0 at state s1).
 
@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 from matplotlib.colors import LinearSegmentedColormap
 
-from agents.harmonic_r import HarmonicROLAgent
+from agents.harmonic_r import Harmonic
 from main import train_agent_with_tracking
 from more_smdp_envs import SMDPConfigFactory
 from run_smdp_experiment import get_greedy_policy
@@ -70,7 +70,7 @@ def run_sweep(env: SMDPEnvironment, cfg_name: str) -> pd.DataFrame:
     for er in ER_VALUES:
         for lr in LR_VALUES:
             for beta in BETA_VALUES:
-                agent = HarmonicROLAgent(
+                agent = Harmonic(
                     name=f"er={er} lr={lr} beta={beta}",
                     action_space=action_space,
                     env=env,
@@ -165,7 +165,7 @@ def plot_heatmaps(df: pd.DataFrame, cfg_name: str) -> None:
     cbar.set_label("% runs with correct policy", fontsize=9)
 
     fig.suptitle(
-        f"HarmonicROL – Robustness Heatmaps\n"
+        f"Harmonic – Robustness Heatmaps\n"
         f"Env: {cfg_name} | correct action at {TARGET_STATE} = {CORRECT_ACTION}",
         fontsize=11,
     )
@@ -223,7 +223,7 @@ def plot_summary_table(df: pd.DataFrame, cfg_name: str) -> None:
     # Title box
     fig.text(
         0.5, 0.97,
-        "HarmonicROL — Parameter Robustness",
+        "Harmonic — Parameter Robustness",
         ha="center", va="top",
         fontsize=13, fontweight="bold",
     )
@@ -320,7 +320,7 @@ def plot_marginal_bars(df: pd.DataFrame, cfg_name: str) -> None:
             ax.text(i, v + 1.5, f"{v:.0f}%", ha="center", va="bottom", fontsize=7)
 
     fig.suptitle(
-        f"HarmonicROL – Marginal Robustness per Hyperparameter\n"
+        f"Harmonic – Marginal Robustness per Hyperparameter\n"
         f"Env: {cfg_name}",
         fontsize=11,
     )
@@ -383,7 +383,7 @@ def _print_latex_table(df: pd.DataFrame) -> None:
     lines = [
         r"\begin{table}[ht]",
         r"\centering",
-        r"\caption{Robustness of HarmonicROL: percentage of hyperparameter",
+        r"\caption{Robustness of Harmonic: percentage of hyperparameter",
         r"combinations that converge to the correct policy (action 0 at state $s_1$).}",
         r"\label{tab:robustness}",
         r"\begin{tabular}{llccc}",
@@ -429,4 +429,3 @@ def _print_latex_table(df: pd.DataFrame) -> None:
 
 if __name__ == "__main__":
     main()
-

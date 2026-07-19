@@ -35,7 +35,7 @@ from lightgbm import LGBMClassifier
 # -----------------------------------------------------------------------------
 # Constants
 # -----------------------------------------------------------------------------
-HARMONIC_AGENT = "Weighted Harmonic"
+HARMONIC_AGENT = "Harmonic"
 SMART_AGENT = "SMART"
 RELAXED_SMART_AGENT = "Relaxed SMART"
 SMART_FAMILY = [SMART_AGENT, RELAXED_SMART_AGENT]
@@ -594,7 +594,7 @@ def plot_hp_peak_vs_sensitivity(hp_df: pd.DataFrame, out_dir: str):
 
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    colors = {'Weighted Harmonic': 'green', 'SMART': 'blue', 'Relaxed SMART': 'orange'}
+    colors = {HARMONIC_AGENT: 'green', SMART_AGENT: 'blue', RELAXED_SMART_AGENT: 'orange'}
 
     for agent in agents:
         subset = hp_df[hp_df["agent"] == agent]
@@ -693,7 +693,7 @@ def compute_run_level_delta_h(dfr: pd.DataFrame) -> pd.DataFrame:
     Compute ΔH for each run (seed × hp combination).
 
     For each (trial_id, seed, hp_id), compute:
-      ΔH = avg_rate(Weighted Harmonic) − max(avg_rate(SMART), avg_rate(Relaxed SMART))
+      ΔH = avg_rate(Harmonic) − max(avg_rate(SMART), avg_rate(Relaxed SMART))
 
     Returns a dataframe with one row per (trial_id, seed, hp_id) with columns:
       - trial_id, seed, hp_id
@@ -1402,4 +1402,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

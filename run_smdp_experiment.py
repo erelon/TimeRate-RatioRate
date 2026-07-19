@@ -1,9 +1,11 @@
 from typing import Dict, Any, List
 
 from agents import *
-from agents.r_learning import RLAgent
-from agents.smart_r import AdaptiveSMARTRLAgent, SMARTRLAgent, SMARTEMARLAgent
-from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
+from agents.r_learning import RLearning, ContinuousRLearning
+# from agents.smart_r import AdaptiveSMARTRLAgent, SMARTRLAgent, SMARTEMARLAgent
+from agents.smart_r import SMART
+from agents.relaxed_smart import RelaxedSMART
+from agents.harmonic_r import WeightedHarmonic, Harmonic
 from smdp_env import *  # SMDPEnvironment, * # default_three_state_smdp_config
 import numpy as np
 
@@ -85,14 +87,14 @@ def main():
     lr = 0.2
     beta = 0.01
     agents = [
-        HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
+        WeightedHarmonic(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
                         exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-        SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
-                        rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-        SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+        RelaxedSMART(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
                      rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-        # HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
-        #                  rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+        SMART(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+              rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+        Harmonic(name="Harmonic", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                 rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         #
         # RLAgent(name="R-Learning", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
         #         rho_learning_rate=beta, with_rho_trick=no_update_on_explore),

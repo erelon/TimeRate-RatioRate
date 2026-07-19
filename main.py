@@ -6,10 +6,12 @@ import matplotlib.pyplot as plt
 
 from collections import defaultdict
 
-from agents.smart_r import SMARTRLAgent, SMARTEMARLAgent
-from agents.harmonic_r import HarmonicRLAgent, HarmonicROLAgent
+from agents.smart_r import SMART
+from agents.relaxed_smart import RelaxedSMART
+from agents.harmonic_r import Harmonic, WeightedHarmonic
 from more_smdp_envs import SMDPConfigFactory
 from run_smdp_experiment import train_agent, get_greedy_policy
+
 from smdp_env import *
 
 
@@ -146,14 +148,14 @@ def main():
         lr = 0.1
         beta = 0.1
         agents = [
-            HarmonicRLAgent(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
-                            exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-            HarmonicROLAgent(name="Harmonic", action_space=action_space, env=env, learning_rate=lr,
-                            exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-            SMARTEMARLAgent(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr,
-                            exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
-            SMARTRLAgent(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
-                         rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+            WeightedHarmonic(name="Weighted Harmonic", action_space=action_space, env=env, learning_rate=lr,
+                             exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+            Harmonic(name="Harmonic", action_space=action_space, env=env, learning_rate=lr,
+                     exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+            RelaxedSMART(name="Relaxed SMART", action_space=action_space, env=env, learning_rate=lr,
+                         exploration_rate=er, rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
+            SMART(name="SMART", action_space=action_space, env=env, learning_rate=lr, exploration_rate=er,
+                  rho_learning_rate=beta, with_rho_trick=no_update_on_explore),
         ]
 
         results = {}

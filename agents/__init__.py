@@ -1,16 +1,26 @@
 # Agents package initialization
 from .base import Agent, MAX_REWARDS
-from .oracle import OracleAgent
+from .oracle import Oracle
 from .random_agent import RandomAgent
-from .q_learning import QLearningAgent, ContinuousQLearningAgent, HarmonicQAgent
-from .r_learning import ContinuousRLAgent,RLAgent 
-from .smart_r import SMARTRLAgent, StateSMARTRLAgent, AdaptiveSMARTRLAgent
-from .harmonic_r import HarmonicRLAgent, HarmonicRLAgent2, AdaptiveHarmonicRLAgent, AdaptiveHarmonicRLAgent2
+from .q_learning import QLearning, ContinuousQLearning
+from .r_learning import ContinuousRLearning, RLearning
+from .smart_r import SMART
+from .relaxed_smart import RelaxedSMART
+from .harmonic_r import Harmonic, WeightedHarmonic
 from .bandits import MAB, ContinuesMAB, UCB, ContinuosUCB
-
+"""
+from .deep_q_wrapper import DeepQWrapper
+from .ppo import PPO, RsmartPPO, SmartPPO, HarmonicPPO, RolloutBuffer
+ """
 __all__ = [
-    'Agent', 'MAX_REWARDS', 'OracleAgent', 'RandomAgent', 'QLearningAgent', 'ContinuousQLearningAgent', 'HarmonicQAgent',
-    'RLAgent', 'ContinuousRLAgent', 'SMARTRLAgent', 'StateSMARTRLAgent', 'AdaptiveSMARTRLAgent',
-    'HarmonicRLAgent', 'HarmonicRLAgent2', 'AdaptiveHarmonicRLAgent', 'AdaptiveHarmonicRLAgent2', 'MAB', 'ContinuesMAB', 'UCB', 'ContinuosUCB'
+    'Agent', 'MAX_REWARDS',
+    'Oracle',
+    'RandomAgent',
+    'QLearning', 'ContinuousQLearning',
+    'RLearning', 'ContinuousRLearning',
+    'SMART', 'RelaxedSMART',
+    'Harmonic', 'WeightedHarmonic',
+    'MAB', 'ContinuesMAB', 'UCB', 'ContinuosUCB',
+    # 'DeepQWrapper',
+    # 'PPO', 'RsmartPPO', 'SmartPPO', 'HarmonicPPO', 'RolloutBuffer',
 ]
-

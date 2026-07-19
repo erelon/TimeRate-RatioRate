@@ -1,6 +1,6 @@
 from .base import Agent
 
-class OracleAgent(Agent):
+class Oracle(Agent):
     def __init__(self, name: str, action_space=None, env_secret=None):
         super().__init__(name, action_space)
         if env_secret is None:
@@ -8,7 +8,7 @@ class OracleAgent(Agent):
         self.env_secret = env_secret
 
     def reset(self):
-        pass
+        super().reset()
 
     def act(self, state):
         return self.env_secret(state)
@@ -17,5 +17,4 @@ class OracleAgent(Agent):
         return self.act(state)
 
     def learn(self, state, action, reward, next_state, time):
-        pass
-
+        super().learn(state, action, reward, next_state, time)
