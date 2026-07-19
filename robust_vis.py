@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+import argparse
 import os, json
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pandas.api.types import is_numeric_dtype
 
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.compose import ColumnTransformer
@@ -39,10 +41,10 @@ def load_dataset():
     # Also filter out 3-way ties altogether
     if "outcome" in dfw.columns:
         n_total = len(dfw)
-        n_3way = len(dfw[dfw["outcome"] == "tie_3way"])
-        n_2way = len(dfw[dfw["outcome"] == "tie_2way"])
+        tie_counts = dfw.loc[dfw["outcome"].str.startswith("tie_", na=False), "outcome"].value_counts()
         dfw = dfw[dfw["outcome"] == "win"].copy()
-        print(f"Filtered out {n_2way} 2-way ties and {n_3way} 3-way ties from {n_total} total trials ({len(dfw)} wins remaining)")
+        tie_summary = ", ".join(f"{count} {name.replace('_', '-')}s" for name, count in tie_counts.items())
+        print(f"Filtered out {tie_summary or 'no ties'} from {n_total} total trials ({len(dfw)} wins remaining)")
 
     # Also drop any rows where winner is NaN (extra safety)
     dfw = dfw[dfw["winner"].notna()].copy()
@@ -78,8 +80,8 @@ def load_dataset():
     return X, y, df
 
 def make_preprocessor(X: pd.DataFrame):
-    cat_cols = [c for c in X.columns if X[c].dtype == "object"]
-    num_cols = [c for c in X.columns if c not in cat_cols]
+    num_cols = [c for c in X.columns if is_numeric_dtype(X[c])]
+    cat_cols = [c for c in X.columns if c not in num_cols]
 
     numeric = Pipeline([
         ("imputer", SimpleImputer(strategy="median")),
@@ -241,7 +243,7 @@ def plot_tsne_map(X: pd.DataFrame, y: pd.Series):
     n_samples = Z.shape[0]
     perplexity = min(30, max(5, n_samples // 10))
 
-    tsne = TSNE(n_components=2, random_state=0, perplexity=perplexity, n_iter=1000)
+    tsne = TSNE(n_components=2, random_state=0, perplexity=perplexity, max_iter=1000)
     Z_tsne = tsne.fit_transform(Z)
 
     labels = y.astype(str).values
@@ -368,7 +370,20 @@ def plot_cluster_winner_mix(X: pd.DataFrame, y: pd.Series, k: int = 6):
     plt.close()
 
 def main():
+    global RESULTS_DIR, WINNERS_CSV, OUT_DIR
+
+    parser = argparse.ArgumentParser(description="Visualize parameter-sweep winner regimes")
+    parser.add_argument("--results-dir", default="results")
+    args = parser.parse_args()
+    RESULTS_DIR = os.path.abspath(args.results_dir)
+    WINNERS_CSV = os.path.join(RESULTS_DIR, "param_sweep_winners.csv")
+    OUT_DIR = os.path.join(RESULTS_DIR, "viz")
+    os.makedirs(OUT_DIR, exist_ok=True)
+
     X, y, df = load_dataset()
+    if len(X) == 0:
+        print("No clear winners are available; skipping classifier visualizations.")
+        return
     pre = make_preprocessor(X)
 
     # LightGBM classifier instead of RandomForest
@@ -384,6 +399,7 @@ def main():
         num_class=n_classes,
         n_jobs=-1,
         random_state=0,
+        verbosity=-1,
     )
 
     pipe = Pipeline([("pre", pre), ("model", lgbm)])

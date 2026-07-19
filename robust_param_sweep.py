@@ -4,7 +4,7 @@ robust_param_sweep.py
 
 Randomized environment-parameter sweep using scikit-learn's ParameterSampler.
 
-Finds cases where each of the 3 algorithms is better, aggregated by:
+Finds cases where each of the 4 algorithms is better, aggregated by:
   1) reward/time ratio: avg_rate = total_return / total_time
   2) convergence stage: early / mid / late / no_convergence
 
@@ -566,12 +566,13 @@ def make_agents(env, er: float, lr: float, beta: float, no_update_on_explore: bo
     """
     Matches your main.py agent choices & hyperparams (you can tune via CLI).
     """
-    from agents.smart_r import SMARTRLAgent, SMARTEMARLAgent
-    from agents.harmonic_r import HarmonicROLAgent
+    from agents.smart_r import SMART
+    from agents.relaxed_smart import RelaxedSMART
+    from agents.harmonic_r import Harmonic, WeightedHarmonic
 
     action_space = env.action_space
     return [
-        HarmonicROLAgent(
+        Harmonic(
             name="Harmonic",
             action_space=action_space,
             env=env,
@@ -580,7 +581,16 @@ def make_agents(env, er: float, lr: float, beta: float, no_update_on_explore: bo
             rho_learning_rate=beta,
             with_rho_trick=no_update_on_explore,
         ),
-        SMARTEMARLAgent(
+        WeightedHarmonic(
+            name="Weighted Harmonic",
+            action_space=action_space,
+            env=env,
+            learning_rate=lr,
+            exploration_rate=er,
+            rho_learning_rate=beta,
+            with_rho_trick=no_update_on_explore,
+        ),
+        RelaxedSMART(
             name="Relaxed SMART",
             action_space=action_space,
             env=env,
@@ -589,7 +599,7 @@ def make_agents(env, er: float, lr: float, beta: float, no_update_on_explore: bo
             rho_learning_rate=beta,
             with_rho_trick=no_update_on_explore,
         ),
-        SMARTRLAgent(
+        SMART(
             name="SMART",
             action_space=action_space,
             env=env,
@@ -619,9 +629,10 @@ def build_hyper_candidates(seed0: int, n: int) -> list[HyperParams]:
 
     # A small “robust” log-space-ish random design
     for _ in range(n):
-        lr = float(np.exp(rng.uniform(np.log(0.01), np.log(0.6))))
-        er = float(rng.uniform(0.05, 0.6))
-        beta = float(np.exp(rng.uniform(np.log(1e-4), np.log(5e-2))))
+        lr = float(np.exp(rng.uniform(np.log(0.01), np.log(0.3))))  # was up to 0.6
+        er = float(rng.uniform(0.1, 0.1)) # was 0.05 up to 0.6
+        # beta = float(np.exp(rng.uniform(np.log(1e-4), np.log(5e-2))))
+        beta = float(rng.uniform(0.001,0.2))
         candidates.append(HyperParams(lr=lr, er=er, beta=beta, no_update_on_explore=True))
 
     # optional: include your current baseline explicitly
@@ -666,7 +677,7 @@ def run_one_seed(
         rows: List[Dict[str, Any]] = []
 
         # Build & train per agent for fairness under non-stationarity
-        for agent_idx in range(3):
+        for agent_idx in range(4):
             try:
                 cfg = build_env_config(params, seed)
                 env = SMDPEnvironment(cfg)
@@ -792,7 +803,8 @@ def compute_harmonic_vs_smart_metrics(agg: pd.DataFrame, margin_eps: float = 0.0
     """
     Compute per (trial_id, hp_id) the delta_h and binary labels.
 
-    delta_h = avg_rate_mean(Weighted Harmonic) - max(avg_rate_mean(SMART), avg_rate_mean(Relaxed SMART))
+    delta_h = max(avg_rate_mean(Harmonic), avg_rate_mean(Weighted Harmonic))
+              - max(avg_rate_mean(SMART), avg_rate_mean(Relaxed SMART))
     """
     # Pivot to get agents as columns
     pivot = agg.pivot_table(
@@ -803,16 +815,17 @@ def compute_harmonic_vs_smart_metrics(agg: pd.DataFrame, margin_eps: float = 0.0
     ).reset_index()
 
     # Compute max of SMART family
-    smart_cols = [c for c in pivot.columns if "SMART" in c and c != "Weighted Harmonic"]
+    smart_cols = [c for c in ["SMART", "Relaxed SMART"] if c in pivot.columns]
     if smart_cols:
         pivot["smart_family_max"] = pivot[smart_cols].max(axis=1)
     else:
         pivot["smart_family_max"] = 0.0
 
     # Compute delta_h
-    harmonic_col = "Weighted Harmonic"
-    if harmonic_col in pivot.columns:
-        pivot["delta_h"] = pivot[harmonic_col] - pivot["smart_family_max"]
+    harmonic_cols = [c for c in ["Harmonic", "Weighted Harmonic"] if c in pivot.columns]
+    if harmonic_cols:
+        pivot["harmonic_family_max"] = pivot[harmonic_cols].max(axis=1)
+        pivot["delta_h"] = pivot["harmonic_family_max"] - pivot["smart_family_max"]
     else:
         pivot["delta_h"] = 0.0
 
@@ -1277,7 +1290,7 @@ def aggregate_and_report(df_runs: pd.DataFrame, outdir: str, num_episodes: int, 
         else:
             winner_agent = None
             tied_agents_str = ",".join(tied_agents)
-            outcome = "tie_3way" if num_tied >= 3 else "tie_2way"
+            outcome = f"tie_{num_tied}way"
 
             # OPTIONAL: label a speed-win, but keep winner_agent=None unless you want to force it
             # (this keeps "wins" as rate-separated cases only)
@@ -1337,7 +1350,8 @@ def aggregate_and_report(df_runs: pd.DataFrame, outdir: str, num_episodes: int, 
 
     tie_2way_count = len(df_winners[df_winners["outcome"] == "tie_2way"])
     tie_3way_count = len(df_winners[df_winners["outcome"] == "tie_3way"])
-    total_ties = tie_2way_count + tie_3way_count
+    tie_4way_count = len(df_winners[df_winners["outcome"] == "tie_4way"])
+    total_ties = tie_2way_count + tie_3way_count + tie_4way_count
     total_wins = len(df_wins_only)
 
     win_counts = df_wins_only["winner"].value_counts().to_dict() if len(df_wins_only) > 0 else {}
@@ -1351,6 +1365,7 @@ def aggregate_and_report(df_runs: pd.DataFrame, outdir: str, num_episodes: int, 
     lines.append(f"| **Wins** | {total_wins} |\n")
     lines.append(f"| **2-way ties** | {tie_2way_count} |\n")
     lines.append(f"| **3-way ties** | {tie_3way_count} |\n")
+    lines.append(f"| **4-way ties** | {tie_4way_count} |\n")
 
     lines.append("\n## Wins by Agent\n")
     if win_counts:
@@ -1371,7 +1386,9 @@ def aggregate_and_report(df_runs: pd.DataFrame, outdir: str, num_episodes: int, 
             for pair, count in sorted(tie_2way_pairs.items(), key=lambda x: -x[1]):
                 lines.append(f"| {pair} | {count} |\n")
         if tie_3way_count > 0:
-            lines.append(f"\n**3-way ties (all agents equal):** {tie_3way_count}\n")
+            lines.append(f"\n**3-way ties:** {tie_3way_count}\n")
+        if tie_4way_count > 0:
+            lines.append(f"\n**4-way ties (all agents equal):** {tie_4way_count}\n")
 
     lines.append("\n## Typical parameter patterns per winner (wins only)\n")
     # explode params for quick summaries - only for clear wins
@@ -1643,8 +1660,8 @@ def build_filtered_trials(n_trials: int, seed0: int) -> list[EnvParams]:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--n-trials", type=int, default=10000)
-    ap.add_argument("--n-seeds", type=int, default=2)
+    ap.add_argument("--n-trials", type=int, default=1000) # GalK was 10000
+    ap.add_argument("--n-seeds", type=int, default=5) # GalK was 2
     ap.add_argument("--seed0", type=int, default=123)
     ap.add_argument("--num-episodes", type=int, default=100)
     ap.add_argument("--max-steps", type=int, default=100)

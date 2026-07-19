@@ -36,9 +36,12 @@ from lightgbm import LGBMClassifier
 # Constants
 # -----------------------------------------------------------------------------
 HARMONIC_AGENT = "Harmonic"
+WEIGHTED_HARMONIC_AGENT = "Weighted Harmonic"
 SMART_AGENT = "SMART"
 RELAXED_SMART_AGENT = "Relaxed SMART"
+HARMONIC_FAMILY = [HARMONIC_AGENT, WEIGHTED_HARMONIC_AGENT]
 SMART_FAMILY = [SMART_AGENT, RELAXED_SMART_AGENT]
+ALL_AGENTS = HARMONIC_FAMILY + SMART_FAMILY
 
 # Duration variability score ordinal mapping
 DURATION_VAR_SCORE = {
@@ -165,14 +168,15 @@ def compute_delta_h(dfa: pd.DataFrame, dfw: pd.DataFrame) -> pd.DataFrame:
             col_map[c] = f"best_rate_{c.replace(' ', '_')}"
     pivot = pivot.rename(columns=col_map)
 
-    # Get Harmonic, SMART, Relaxed SMART rates
-    h_col = f"best_rate_{HARMONIC_AGENT.replace(' ', '_')}"
+    # Get Harmonic-family and SMART-family rates
+    h_cols = [f"best_rate_{name.replace(' ', '_')}" for name in HARMONIC_FAMILY]
     s_col = f"best_rate_{SMART_AGENT.replace(' ', '_')}"
     rs_col = f"best_rate_{RELAXED_SMART_AGENT.replace(' ', '_')}"
 
     # Compute delta_H
-    if h_col in pivot.columns:
-        pivot["best_rate_H"] = pivot[h_col]
+    available_h_cols = [c for c in h_cols if c in pivot.columns]
+    if available_h_cols:
+        pivot["best_rate_H"] = pivot[available_h_cols].max(axis=1)
     else:
         pivot["best_rate_H"] = np.nan
 
@@ -252,7 +256,7 @@ def run_existing_scripts(results_dir: str, plots_dir: str):
         try:
             # robust_vis.py uses RESULTS_DIR constant, so we run it from script dir
             # and then copy outputs
-            subprocess.run([sys.executable, robust_vis_script],
+            subprocess.run([sys.executable, robust_vis_script, "--results-dir", results_dir],
                           cwd=script_dir, check=True, capture_output=True)
             print("    robust_vis.py completed successfully")
         except subprocess.CalledProcessError as e:
@@ -268,12 +272,12 @@ def run_existing_scripts(results_dir: str, plots_dir: str):
     else:
         print(f"  Warning: robust_vis.py not found at {robust_vis_script}")
 
-    # Run make_regime_heamap.py
-    heatmap_script = os.path.join(script_dir, "make_regime_heamap.py")
+    # Run make_regime_heatmap.py
+    heatmap_script = os.path.join(script_dir, "make_regime_heatmap.py")
     if os.path.exists(heatmap_script):
         print("\n[2] Running make_regime_heamap.py...")
         try:
-            subprocess.run([sys.executable, heatmap_script],
+            subprocess.run([sys.executable, heatmap_script, "--results-dir", results_dir],
                           cwd=script_dir, check=True, capture_output=True)
             print("    make_regime_heamap.py completed successfully")
         except subprocess.CalledProcessError as e:
@@ -344,7 +348,7 @@ def plot_delta_h_boxplots(df: pd.DataFrame, out_dir: str):
     groups = df.groupby("mismatch")["delta_H"].apply(list).to_dict()
     labels = ["False (match)", "True (mismatch)"]
     data = [groups.get(False, []), groups.get(True, [])]
-    bp = ax.boxplot(data, labels=labels, patch_artist=True)
+    bp = ax.boxplot(data, tick_labels=labels, patch_artist=True)
     for patch, color in zip(bp['boxes'], ['lightblue', 'salmon']):
         patch.set_facecolor(color)
     ax.axhline(0, color="red", linestyle="--", alpha=0.7)
@@ -358,7 +362,7 @@ def plot_delta_h_boxplots(df: pd.DataFrame, out_dir: str):
         dk_groups = df.groupby("duration_kind")["delta_H"].apply(list).to_dict()
         dk_labels = sorted(dk_groups.keys())
         dk_data = [dk_groups[k] for k in dk_labels]
-        bp = ax.boxplot(dk_data, labels=dk_labels, patch_artist=True)
+        bp = ax.boxplot(dk_data, tick_labels=dk_labels, patch_artist=True)
         colors = plt.cm.viridis(np.linspace(0, 0.8, len(dk_labels)))
         for patch, color in zip(bp['boxes'], colors):
             patch.set_facecolor(color)
@@ -376,7 +380,7 @@ def plot_delta_h_boxplots(df: pd.DataFrame, out_dir: str):
         c_groups = df.groupby("coupled")["delta_H"].apply(list).to_dict()
         c_labels = ["False", "True"]
         c_data = [c_groups.get(False, []), c_groups.get(True, [])]
-        bp = ax.boxplot(c_data, labels=c_labels, patch_artist=True)
+        bp = ax.boxplot(c_data, tick_labels=c_labels, patch_artist=True)
         for patch, color in zip(bp['boxes'], ['lightgreen', 'gold']):
             patch.set_facecolor(color)
         ax.axhline(0, color="red", linestyle="--", alpha=0.7)
@@ -533,7 +537,7 @@ def plot_hp_sensitivity_violin(hp_df: pd.DataFrame, out_dir: str):
         print("    Skipping: no HP tuning data")
         return
 
-    agents = [HARMONIC_AGENT, SMART_AGENT, RELAXED_SMART_AGENT]
+    agents = ALL_AGENTS
     agents = [a for a in agents if a in hp_df["agent"].unique()]
 
     if not agents:
@@ -551,7 +555,7 @@ def plot_hp_sensitivity_violin(hp_df: pd.DataFrame, out_dir: str):
     bp = ax.boxplot(data, positions=range(len(agents)), widths=0.2, patch_artist=True)
 
     # Color the violin plots
-    colors = ['green', 'blue', 'orange']
+    colors = ['green', 'darkgreen', 'blue', 'orange']
     for i, pc in enumerate(parts['bodies']):
         pc.set_facecolor(colors[i % len(colors)])
         pc.set_alpha(0.3)
@@ -585,7 +589,7 @@ def plot_hp_peak_vs_sensitivity(hp_df: pd.DataFrame, out_dir: str):
         print("    Skipping: no HP tuning data")
         return
 
-    agents = [HARMONIC_AGENT, SMART_AGENT, RELAXED_SMART_AGENT]
+    agents = ALL_AGENTS
     agents = [a for a in agents if a in hp_df["agent"].unique()]
 
     if not agents:
@@ -594,7 +598,12 @@ def plot_hp_peak_vs_sensitivity(hp_df: pd.DataFrame, out_dir: str):
 
     fig, ax = plt.subplots(figsize=(10, 8))
 
-    colors = {HARMONIC_AGENT: 'green', SMART_AGENT: 'blue', RELAXED_SMART_AGENT: 'orange'}
+    colors = {
+        HARMONIC_AGENT: 'green',
+        WEIGHTED_HARMONIC_AGENT: 'darkgreen',
+        SMART_AGENT: 'blue',
+        RELAXED_SMART_AGENT: 'orange',
+    }
 
     for agent in agents:
         subset = hp_df[hp_df["agent"] == agent]
@@ -647,7 +656,7 @@ def plot_robustness_by_regime(hp_df: pd.DataFrame, dfw: pd.DataFrame, out_dir: s
     if "mismatch" in df.columns:
         groups = df.groupby("mismatch")["robustness_diff"].apply(list).to_dict()
         data = [groups.get(False, []), groups.get(True, [])]
-        bp = ax.boxplot(data, labels=["Match", "Mismatch"], patch_artist=True)
+        bp = ax.boxplot(data, tick_labels=["Match", "Mismatch"], patch_artist=True)
         for patch, color in zip(bp['boxes'], ['lightblue', 'salmon']):
             patch.set_facecolor(color)
     ax.axhline(0, color="red", linestyle="--", alpha=0.7)
@@ -661,7 +670,7 @@ def plot_robustness_by_regime(hp_df: pd.DataFrame, dfw: pd.DataFrame, out_dir: s
         groups = df.groupby("duration_kind")["robustness_diff"].apply(list).to_dict()
         labels = sorted(groups.keys())
         data = [groups[k] for k in labels]
-        bp = ax.boxplot(data, labels=labels, patch_artist=True)
+        bp = ax.boxplot(data, tick_labels=labels, patch_artist=True)
         ax.axhline(0, color="red", linestyle="--", alpha=0.7)
         ax.set_xlabel("Duration Kind")
         ax.set_ylabel("Robustness Diff")
@@ -673,7 +682,7 @@ def plot_robustness_by_regime(hp_df: pd.DataFrame, dfw: pd.DataFrame, out_dir: s
     if "coupled" in df.columns:
         groups = df.groupby("coupled")["robustness_diff"].apply(list).to_dict()
         data = [groups.get(False, []), groups.get(True, [])]
-        bp = ax.boxplot(data, labels=["False", "True"], patch_artist=True)
+        bp = ax.boxplot(data, tick_labels=["False", "True"], patch_artist=True)
         for patch, color in zip(bp['boxes'], ['lightgreen', 'gold']):
             patch.set_facecolor(color)
     ax.axhline(0, color="red", linestyle="--", alpha=0.7)
@@ -693,7 +702,8 @@ def compute_run_level_delta_h(dfr: pd.DataFrame) -> pd.DataFrame:
     Compute ΔH for each run (seed × hp combination).
 
     For each (trial_id, seed, hp_id), compute:
-      ΔH = avg_rate(Harmonic) − max(avg_rate(SMART), avg_rate(Relaxed SMART))
+      ΔH = max(avg_rate(Harmonic), avg_rate(Weighted Harmonic))
+           − max(avg_rate(SMART), avg_rate(Relaxed SMART))
 
     Returns a dataframe with one row per (trial_id, seed, hp_id) with columns:
       - trial_id, seed, hp_id
@@ -727,15 +737,15 @@ def compute_run_level_delta_h(dfr: pd.DataFrame) -> pd.DataFrame:
     ).reset_index()
 
     # Rename agent columns for clarity
-    h_col = HARMONIC_AGENT
+    h_cols = [c for c in HARMONIC_FAMILY if c in pivot.columns]
     s_col = SMART_AGENT
     rs_col = RELAXED_SMART_AGENT
 
     # Get Harmonic rate
-    if h_col in pivot.columns:
-        pivot["harmonic_rate"] = pivot[h_col]
+    if h_cols:
+        pivot["harmonic_rate"] = pivot[h_cols].max(axis=1)
     else:
-        print(f"    Warning: {h_col} not found in data")
+        print(f"    Warning: no Harmonic-family agents found in data")
         return pd.DataFrame()
 
     # Get SMART family rates
@@ -922,7 +932,7 @@ def plot_worst_case_return_by_agent(dfr: pd.DataFrame, out_dir: str):
     worst_case.columns = ["trial_id", "agent", "worst_case_rate"]
 
     # Get data for each agent
-    agents = [HARMONIC_AGENT, SMART_AGENT, RELAXED_SMART_AGENT]
+    agents = ALL_AGENTS
     agents_present = [a for a in agents if a in worst_case["agent"].unique()]
 
     if len(agents_present) == 0:
@@ -948,13 +958,14 @@ def plot_worst_case_return_by_agent(dfr: pd.DataFrame, out_dir: str):
     # Colors
     agent_colors = {
         HARMONIC_AGENT: "tab:green",
+        WEIGHTED_HARMONIC_AGENT: "darkgreen",
         SMART_AGENT: "tab:blue",
         RELAXED_SMART_AGENT: "tab:orange"
     }
     colors = [agent_colors.get(a, "gray") for a in labels]
 
     # Create boxplot
-    bp = ax.boxplot(data, labels=labels, patch_artist=True, widths=0.6)
+    bp = ax.boxplot(data, tick_labels=labels, patch_artist=True, widths=0.6)
 
     # Color the boxes
     for patch, color in zip(bp['boxes'], colors):

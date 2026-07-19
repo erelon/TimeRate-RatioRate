@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import os
 import json
 import numpy as np
@@ -157,6 +158,18 @@ def slice_key(row) -> str:
 # Main heatmap generation
 # -----------------------------
 def main():
+    global RESULTS_DIR, WINNERS_CSV, AGG_CSV, OUT_DIR
+
+    parser = argparse.ArgumentParser(description="Generate regime heatmaps from parameter-sweep CSVs")
+    parser.add_argument("--results-dir", default="results")
+    args = parser.parse_args()
+
+    RESULTS_DIR = os.path.abspath(args.results_dir)
+    WINNERS_CSV = os.path.join(RESULTS_DIR, "param_sweep_winners.csv")
+    AGG_CSV = os.path.join(RESULTS_DIR, "param_sweep_agg.csv")
+    OUT_DIR = os.path.join(RESULTS_DIR, "heatmaps")
+    os.makedirs(OUT_DIR, exist_ok=True)
+
     df = load_join()
     df = compute_margin(df)
 
@@ -178,7 +191,12 @@ def main():
     # - 1 margin heatmap (mean winner margin vs runner-up)
     slices = df.groupby(["reward_kind", "duration_kind", "coupled"], dropna=False)
 
-    agents = sorted(df["winner"].dropna().unique().tolist())
+    rate_prefix = "avg_rate_mean__"
+    agents = sorted(
+        column[len(rate_prefix):]
+        for column in df.columns
+        if column.startswith(rate_prefix)
+    )
 
     for (rk, dk, coup), g in slices:
         if len(g) < 30:
